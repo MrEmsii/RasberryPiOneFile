@@ -22,8 +22,6 @@ import Another
 
 MyLCD = API_LCD_I2C.lcd()
 
-now = datetime.datetime.now()
-
 class thread:
     def Table_Maker_thread(path, file, columns, table_name):
         t1 = threading.Thread(target=operation.Table_Maker, args=(path, file, columns, table_name,))
@@ -46,8 +44,8 @@ class thread:
         t5 = threading.Thread(target=Control.thread_Control, args=(path,))
         t5.start()
 
-    def LCD_Control_thread(time_now, time_stop_LCD, wait):
-        t5 = threading.Thread(target=Control.LCD_Control, args=(time_now, time_stop_LCD, wait,))
+    def LCD_Control_thread(time_stop_LCD, time_one_segment):
+        t5 = threading.Thread(target=Control.LCD_Control, args=(time_stop_LCD, time_one_segment,))
         t5.start()
     
 class operation:
@@ -82,8 +80,8 @@ class operation:
 
 
 class Control:
-    def LCD_Control(time_start, time_stop, wait):
-        while time_start < time_stop:
+    def LCD_Control(time_stop_LCD, wait):
+        while datetime.datetime.now() < time_stop_LCD:
             MyLCD.lcd_display_string_pos("Data: " + str(datetime.date.today()), 3, 2)
             for i in range(int(wait/0.2)):
                 clock = datetime.datetime.now()
@@ -113,11 +111,8 @@ class Control:
                 MyLCD.lcd_display_string_pos(RAM_per, 4, 4)
                 time.sleep(1)
             MyLCD.lcd_clear()
-
-
         MyLCD.backlight(0)
-        
-            
+                    
     def thread_Control(path):
 
         localization = operation.Weather_City(path, "config.json")
@@ -129,13 +124,11 @@ class Control:
         time_start_LCD = datetime.datetime.now()
 
         while True:
-
             if datetime.datetime.now() >= time_start_LCD:
                 time_start_LCD = datetime.datetime(time_start_LCD.year, time_start_LCD.month, time_start_LCD.day) + datetime.timedelta(hours=7)
                 time_stop_LCD = time_start_LCD + datetime.timedelta(hours=15)
-                time_now = datetime.datetime.now()
                 
-                thread.LCD_Control_thread(time_now, time_stop_LCD, wait = 3)
+                thread.LCD_Control_thread(time_stop_LCD, time_one_segment = 3)
                 time_start_LCD = datetime.datetime(time_start_LCD.year, time_start_LCD.month, time_start_LCD.day) + datetime.timedelta(days=1)
                 print("LCD")
 
@@ -154,10 +147,10 @@ class Control:
                 time_start_TempSaver += datetime.timedelta(minutes=3)
                 print("Temp")        
 
-            time.sleep(10)
+            time.sleep(1)
 
 if __name__ == '__main__':
-    path = "/samba/python/"
+    path = os.path.join("/samba/", "python/")
     try:
         if os.path.isfile(path + "Heat.db") == False:
             columns = ("data", "godzina", "temp_dot", "temp_comma", "jednostka")
