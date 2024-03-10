@@ -23,6 +23,6 @@ def save(path):
     
     temp = termW1()
     data = [(str(time.strftime("%Y-%m-%d")), str(time.strftime("%H:%M:%S")), temp, temp.replace('.',','), str(chr(176) + "C")),]
-    DataBaseControl.insertBase(connect, "temperatura", data, place="NULL,")
-    DataBaseControl.closeBase(connect, "yes")
+    DataBaseControl.insert_Base(connect, "temperatura", data, place="NULL,")
+    DataBaseControl.close_Base(connect, "yes")
     

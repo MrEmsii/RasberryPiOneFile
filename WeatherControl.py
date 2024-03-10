@@ -22,7 +22,7 @@ def weather(city, api_key, base_url):
             current_humidity = str(y["humidity"]) + "%"
             z = x["weather"]
             info_weather = z[0]["description"]
-            info_weather = Another.removeAccents(input_text = info_weather)
+            info_weather = Another.remove_Accents(input_text = info_weather)
     except:
         temp_outside = "NO INFO"
         current_pressure = "NO INFO"

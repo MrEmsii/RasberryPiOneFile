@@ -28,16 +28,16 @@ def collect(connect, tab, id, column):
 def table_maker(connect, columns, table_name):
     cur = connect.cursor()
     create_table(cur, table_name, columns)
-    closeBase(connect, "yes")
+    close_Base(connect, "yes")
 
-def updateBase(connect, table_name, data_list, place):
+def update_Base(connect, table_name, data_list, place):
     cursor = connect.cursor()
     update_query = f"UPDATE {table_name} SET {place} = ? WHERE id = ?"
     for data_tuple in data_list:
         cursor.execute(update_query, data_tuple)    
 
 
-def insertBase(connect, table_name, data_list, place):
+def insert_Base(connect, table_name, data_list, place):
     cursor = connect.cursor()
     num_columns = len(data_list[0])
     placeholders = ', '.join(['?' for _ in range(num_columns)])
@@ -45,7 +45,7 @@ def insertBase(connect, table_name, data_list, place):
     for data_tuple in data_list:
         cursor.execute(insert_query, data_tuple)
 
-def closeBase(connect, save):
+def close_Base(connect, save):
     if save == "yes":
         connect.commit()
     connect.close()	
