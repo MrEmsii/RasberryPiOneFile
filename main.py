@@ -6,7 +6,6 @@
 
 import os
 import datetime 
-import traceback
 import threading
 import time
 from subprocess import check_output
@@ -87,6 +86,7 @@ class operation:
 
 
 class Control:
+    @Another.save_error_to_file("log_bledow.txt")
     def LCD_Control(time_stop_LCD, wait):
         while datetime.datetime.now() < time_stop_LCD:
             MyLCD.lcd_display_string_pos("Data: " + str(datetime.date.today()), 3, 2)
@@ -116,16 +116,8 @@ class Control:
                 MyLCD.lcd_display_string_pos(str(current_p_h), 4, int((20 - len(str(current_p_h)))/2))
                 MyLCD.lcd_display_string_pos(str(info_weather), 2, int((20 - len(str(info_weather)))/2))
                 time.sleep(3)
-                # if len(info_weather) >= 18:
-                #     for i in range (0, len(info_weather)):
-                #         lcd_text = str((" "*16)) + info_weather + str((" "*16))[i:(i+20)]
-                #         MyLCD.lcd_display_string(lcd_text,2)
-                #         time.sleep(0.3)
-                #         MyLCD.lcd_display_string(str((" "*16))[(22+i):i], 2)
-                # else:
-                #     MyLCD.lcd_display_string_pos(str(info_weather), 2, int((20 - len(str(info_weather)))/2))		
             MyLCD.lcd_clear()
-
+            
             ip = ConfigControl.collect_Config(path,"IP")
             MyLCD.lcd_display_string_pos(ip, 1, int((20 - len(ip))/2) - 1)
             for i in range(int(wait*3)):
@@ -139,7 +131,7 @@ class Control:
                 time.sleep(0.3)
             MyLCD.lcd_clear()
         MyLCD.backlight(0)
-                    
+    @Another.save_error_to_file("log_bledow.txt")
     def thread_Control():
         time_start_WeatherCalc = datetime.datetime.now()
         time_start_get_ip = datetime.datetime.now()
@@ -161,7 +153,7 @@ class Control:
                 thread.WeatherCalc_thread()
                 time_start_WeatherCalc += datetime.timedelta(minutes=10)
                 print("Weather")    
-
+            print(1/0)
             if datetime.datetime.now() >= time_start_get_ip:
                 thread.GetIP_thread()
                 time_start_get_ip += datetime.timedelta(minutes=5)
@@ -175,26 +167,21 @@ class Control:
             time.sleep(1)
 
 if __name__ == '__main__':
-    try:
-        path = os.path.join("/samba/", "python/")
-        
-        MyLCD.backlight(0)
-        if os.path.isfile(path + "Heat.db") == False:
-            columns = ("data", "godzina", "temp_dot", "temp_comma", "jednostka")
-            thread.Table_Maker_thread(path, "Heat.db", columns, "temperatura") 
+    path = os.path.join("/samba/python/")
+    
+    MyLCD.backlight(0)
+    if os.path.isfile(path + "Heat.db") == False:
+        columns = ("data", "godzina", "temp_dot", "temp_comma", "jednostka")
+        thread.Table_Maker_thread(path, "Heat.db", columns, "temperatura") 
 
-        if os.path.isfile(path + "config.json") == False:
-            dictionary = {
-                "api_key": input("ENTER api_key \n"),
-                "base_url": input("ENTER base_url \n"),
-                "localization_url": input("ENTER localization_url \n"),
-                "localization": "1",
-                "time_update": str(datetime.datetime.now())
-            } 
-            ConfigControl.insert_Config(path, data=dictionary)
-        thread.localization_thread()
-        thread.thread_Control_thread()  # !!!!
-
-    except:
-        traceback.print_exc()  
-        Another.error_insert(traceback.format_exc())
+    if os.path.isfile(path + "config.json") == False:
+        dictionary = {
+            "api_key": input("ENTER api_key \n"),
+            "base_url": input("ENTER base_url \n"),
+            "localization_url": input("ENTER localization_url \n"),
+            "localization": "1",
+            "time_update": str(datetime.datetime.now())
+        } 
+        ConfigControl.insert_Config(path, data=dictionary)
+    thread.localization_thread()
+    thread.thread_Control_thread()  # !!!!
