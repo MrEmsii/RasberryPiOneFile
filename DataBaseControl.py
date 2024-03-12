@@ -4,7 +4,6 @@
 
 ##InProgrogress!!!
 
-
 import sqlite3
 import datetime
 import os
@@ -12,7 +11,6 @@ import os
 def connectBase(path, file):
     connect = sqlite3.connect(str(path) + str(file))
     return connect
-
 
 def create_table(cursor, table_name, columns):
     column_definitions = ', '.join([f"{col} VARCHAR(250) NOT NULL" for col in columns])
@@ -35,7 +33,6 @@ def update_Base(connect, table_name, data_list, place):
     update_query = f"UPDATE {table_name} SET {place} = ? WHERE id = ?"
     for data_tuple in data_list:
         cursor.execute(update_query, data_tuple)    
-
 
 def insert_Base(connect, table_name, data_list, place):
     cursor = connect.cursor()

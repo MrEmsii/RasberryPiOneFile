@@ -30,6 +30,8 @@ class thread:
     def Temp_Saver_thread():
         t2 = threading.Thread(target=operation.Temp_Calc)
         t2.start()
+        t2.join()
+        t2.join()
 
     def localization_thread():
         t3_0 = threading.Thread(target=operation.localization)
@@ -54,8 +56,7 @@ class thread:
     
 class operation:
     def Table_Maker(file, columns, table_name):
-        back = DataBaseControl.table_maker(DataBaseControl.connectBase(file), columns, table_name)
-        print(back)
+        DataBaseControl.table_maker(DataBaseControl.connectBase(file), columns, table_name)
 
     def Temp_Calc():
         Temperature_Calculation.save(path)
@@ -86,6 +87,7 @@ class operation:
 
 
 class Control:
+
     @Another.save_error_to_file("log_bledow.txt")
     def LCD_Control(time_stop_LCD, wait):
         while datetime.datetime.now() < time_stop_LCD:
@@ -98,12 +100,15 @@ class Control:
 
             MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
             for i in range(int(wait)):
-                temp_1 = " Room = " + Temperature_Calculation.termW1() + "\u00dfC "
-                temp_2 = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
+                temp_list = Temperature_Calculation.tempALL()
+                temp_1 = " Room = " + str(temp_list[0]) + "\u00dfC "
+                temp_2 = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
+                temp_3 = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
                 
                 MyLCD.lcd_display_string_pos(str(temp_1), 2, 3)
-                MyLCD.lcd_display_string_pos(str(temp_2), 3, 1)
-                time.sleep(1)
+                MyLCD.lcd_display_string_pos(str(temp_2), 3, 0)
+                MyLCD.lcd_display_string_pos(str(temp_3), 4, 1)
+                time.sleep(0.7)
             MyLCD.lcd_clear()
 
             for i in range(int(wait/3)):
@@ -131,6 +136,7 @@ class Control:
                 time.sleep(0.3)
             MyLCD.lcd_clear()
         MyLCD.backlight(0)
+
     @Another.save_error_to_file("log_bledow.txt")
     def thread_Control():
         time_start_WeatherCalc = datetime.datetime.now()
@@ -153,7 +159,7 @@ class Control:
                 thread.WeatherCalc_thread()
                 time_start_WeatherCalc += datetime.timedelta(minutes=10)
                 print("Weather")    
-            print(1/0)
+
             if datetime.datetime.now() >= time_start_get_ip:
                 thread.GetIP_thread()
                 time_start_get_ip += datetime.timedelta(minutes=5)
@@ -163,8 +169,7 @@ class Control:
                 thread.Temp_Saver_thread()
                 time_start_TempSaver += datetime.timedelta(minutes=3)
                 print("Temp")        
-
-            time.sleep(1)
+            time.sleep(10)
 
 if __name__ == '__main__':
     path = os.path.join("/samba/python/")
