@@ -24,6 +24,9 @@ def edit_Config(path, data_list):
         f.truncate()     # remove remaining part
 
 def collect_Config(path, name):
-    with open(str(path+file), 'r') as openfile:
-        json_object = json.load(openfile)
-    return json_object[str(name)]
+    try:
+        with open(str(path+file), 'r') as openfile:
+            json_object = json.load(openfile)
+        return json_object[str(name)]
+    except json.decoder.JSONDecodeError:
+        collect_Config(path, name)

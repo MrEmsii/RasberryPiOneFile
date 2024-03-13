@@ -6,6 +6,7 @@ import time
 import board
 import neopixel
 import numpy as np
+import traceback
 
 import ConfigControl
 import Another
@@ -57,11 +58,15 @@ def wheel(pos):
     return (r, g, b) if ORDER in (neopixel.RGB, neopixel.GRB) else (r, g, b, 0)
 
 def rainbow_cycle(wait):
+    bra = float(ConfigControl.collect_Config(path,"brightness"))
     for j in range(255):
         for i in range(num_pixels):
             pixel_index = (i * 256 // num_pixels) + j
             pixels[i] = wheel(pixel_index & 255)
-        leds_print(pixels[i], float(ConfigControl.collect_Config(path,"brightness")))
+   
+        leds_print(pixels[i], bra)
+
+        #print(pixels[i], float(ConfigControl.collect_Config(path,"brightness")))
         time.sleep(wait)
 
 def constant():
