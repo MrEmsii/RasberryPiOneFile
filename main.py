@@ -18,42 +18,58 @@ import API_LCD_I2C
 import WeatherControl
 import ConfigControl
 import Another
+import LEDs_Controler
+import IR_Controler
 
 MyLCD = API_LCD_I2C.lcd()
 
 class thread:
     def Table_Maker_thread(path, file, columns, table_name):
-        t1 = threading.Thread(target=operation.Table_Maker, args=(path, file, columns, table_name,))
-        t1.start()
-        t1.join()
+        t_tm = threading.Thread(target=operation.Table_Maker, args=(path, file, columns, table_name,))
+        t_tm.start()
+        t_tm.join()
 
     def Temp_Saver_thread():
-        t2 = threading.Thread(target=operation.Temp_Calc)
-        t2.start()
-        t2.join()
-        t2.join()
+        t_ts = threading.Thread(target=operation.Temp_Calc)
+        t_ts.start()
+        t_ts.join()
+        print("Temp")
 
     def localization_thread():
-        t3_0 = threading.Thread(target=operation.localization)
-        t3_0.start()
-        t3_0.join()
+        t_local = threading.Thread(target=operation.localization)
+        t_local.start()
+        t_local.join()
+        print("Localization")
 
     def WeatherCalc_thread():
-        t3_1 = threading.Thread(target=operation.Weather_Calc)
-        t3_1.start()
+        t_ws = threading.Thread(target=operation.Weather_Calc)
+        t_ws.start()
+        print("Weather") 
 
     def GetIP_thread():
-        t4 = threading.Thread(target=operation.get_ip)
-        t4.start()
+        t_gIP = threading.Thread(target=operation.get_ip)
+        t_gIP.start()
+        print("IP")
     
     def thread_Control_thread():
-        t5 = threading.Thread(target=Control.thread_Control)
-        t5.start()
+        t_tC = threading.Thread(target=Control.thread_Control)
+        t_tC.start()
 
     def LCD_Control_thread(time_stop_LCD, time_one_segment):
-        t5 = threading.Thread(target=Control.LCD_Control, args=(time_stop_LCD, time_one_segment,))
-        t5.start()
-    
+        t_LCD = threading.Thread(target=Control.LCD_Control, args=(time_stop_LCD, time_one_segment,))
+        t_LCD.start()
+        print("LCD")
+
+    def LEDs_thread():
+        t_LED = threading.Thread(target=Control.LEDs)
+        t_LED.start()
+        print("LEDs")
+
+    def IRDa_Control():
+        t_IRDa = threading.Thread(target=Control.IRDa_Control)
+        t_IRDa.start()
+        print("IRDa")
+
 class operation:
     def Table_Maker(file, columns, table_name):
         DataBaseControl.table_maker(DataBaseControl.connectBase(file), columns, table_name)
@@ -85,10 +101,17 @@ class operation:
             cmd = "No IP"
         ConfigControl.edit_Config(path,[("IP",cmd)])
 
-
 class Control:
 
     @Another.save_error_to_file("log_bledow.txt")
+    def LEDs():
+        while True:
+            LEDs_Controler.main()
+            time.sleep(1)
+
+    def IRDa_Control():
+        IR_Controler.main()
+
     def LCD_Control(time_stop_LCD, wait):
         while datetime.datetime.now() < time_stop_LCD:
             MyLCD.lcd_display_string_pos("Data: " + str(datetime.date.today()), 3, 2)
@@ -98,35 +121,36 @@ class Control:
                 time.sleep(0.2)
             MyLCD.lcd_clear()
 
-            MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
-            for i in range(int(wait)):
-                temp_list = Temperature_Calculation.tempALL()
-                temp_1 = " Room = " + str(temp_list[0]) + "\u00dfC "
-                temp_2 = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
-                temp_3 = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
-                
-                MyLCD.lcd_display_string_pos(str(temp_1), 2, 3)
-                MyLCD.lcd_display_string_pos(str(temp_2), 3, 0)
-                MyLCD.lcd_display_string_pos(str(temp_3), 4, 1)
-                time.sleep(0.7)
-            MyLCD.lcd_clear()
-
             for i in range(int(wait/3)):
                 city = ConfigControl.collect_Config(path,"localization")
                 temp_outside = ConfigControl.collect_Config(path,"temp_outside")
                 current_p_h = ConfigControl.collect_Config(path,"current_humidity") + " " + ConfigControl.collect_Config(path,"current_pressure")
                 info_weather = ConfigControl.collect_Config(path,"info_weather")
                 MyLCD.lcd_display_string_pos(str(city), 1, int((20 - len(str(city)))/2))
+                MyLCD.lcd_display_string_pos(str(info_weather), 2, int((20 - len(str(info_weather)))/2))
                 MyLCD.lcd_display_string_pos(str(temp_outside), 3, int((20 - len(str(temp_outside)))/2))
                 MyLCD.lcd_display_string_pos(str(current_p_h), 4, int((20 - len(str(current_p_h)))/2))
-                MyLCD.lcd_display_string_pos(str(info_weather), 2, int((20 - len(str(info_weather)))/2))
                 time.sleep(3)
+            temp_list = Temperature_Calculation.tempALL()    
             MyLCD.lcd_clear()
-            
+
+            MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
+            for i in range(int(wait)):
+                
+                temp_1 = " Room = " + str(temp_list[0]) + "\u00dfC "
+                temp_2 = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
+                temp_3 = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
+                
+                MyLCD.lcd_display_string_pos(str(temp_1), 2, 4)
+                MyLCD.lcd_display_string_pos(str(temp_2), 3, 1)
+                MyLCD.lcd_display_string_pos(str(temp_3), 4, 2)
+                time.sleep(0.7)
+            MyLCD.lcd_clear()
+     
             ip = ConfigControl.collect_Config(path,"IP")
             MyLCD.lcd_display_string_pos(ip, 1, int((20 - len(ip))/2) - 1)
             for i in range(int(wait*3)):
-                cpu_per = "CPU= " + str(psutil.cpu_percent(interval = 0.5)) + "%"
+                cpu_per = "CPU= " + str(psutil.cpu_percent(interval = 0.2)) + "%"
                 RAM_per = "RAM= " + str(psutil.virtual_memory().percent) + "%"
                 disk_per = "DISK= " + str(psutil.disk_usage('/').percent) + "%"
                 
@@ -139,12 +163,16 @@ class Control:
 
     @Another.save_error_to_file("log_bledow.txt")
     def thread_Control():
-        time_start_WeatherCalc = datetime.datetime.now()
-        time_start_get_ip = datetime.datetime.now()
-        time_start_TempSaver = datetime.datetime.now()
 
-        time_start_LCD = datetime.datetime.now()
-        time_start_LCD = datetime.datetime(time_start_LCD.year, time_start_LCD.month, time_start_LCD.day) + datetime.timedelta(hours=7)
+        thread.IRDa_Control()
+        thread.LEDs_thread()
+        thread.localization_thread()
+
+        start_time = time_start_WeatherCalc = time_start_get_ip = time_start_TempSaver = time_start_LCD = datetime.datetime.now()
+        date = datetime.datetime(start_time.year, start_time.month, start_time.day)
+
+        time_start_LCD = date + datetime.timedelta(hours=7)
+        time_stop_LEDs = date + datetime.timedelta(hours=23)
 
         while True:
             if datetime.datetime.now() >= time_start_LCD:
@@ -153,27 +181,27 @@ class Control:
                 
                 thread.LCD_Control_thread(time_stop_LCD, time_one_segment = 3)
                 time_start_LCD = datetime.datetime(time_start_LCD.year, time_start_LCD.month, time_start_LCD.day) + datetime.timedelta(days=1, hours=7)
-                print("LCD")
 
             if datetime.datetime.now() >= time_start_WeatherCalc:
                 thread.WeatherCalc_thread()
                 time_start_WeatherCalc += datetime.timedelta(minutes=10)
-                print("Weather")    
 
             if datetime.datetime.now() >= time_start_get_ip:
                 thread.GetIP_thread()
                 time_start_get_ip += datetime.timedelta(minutes=5)
-                print("IP")
-
+                
             if datetime.datetime.now() >= time_start_TempSaver:
                 thread.Temp_Saver_thread()
                 time_start_TempSaver += datetime.timedelta(minutes=3)
-                print("Temp")        
-            time.sleep(10)
+                
+            if datetime.datetime.now() >= time_stop_LEDs:
+                time_stop_LEDs = time_stop_LEDs + datetime.timedelta(days=1)
+                data = [("color", 0), ("effects", 1)]
+                ConfigControl.edit_Config(path, data)  
+            
+            time.sleep(5)
 
-if __name__ == '__main__':
-    path = os.path.join("/samba/python/")
-    
+def startingProces():
     MyLCD.backlight(0)
     if os.path.isfile(path + "Heat.db") == False:
         columns = ("data", "godzina", "temp_dot", "temp_comma", "jednostka")
@@ -184,9 +212,28 @@ if __name__ == '__main__':
             "api_key": input("ENTER api_key \n"),
             "base_url": input("ENTER base_url \n"),
             "localization_url": input("ENTER localization_url \n"),
-            "localization": "1",
+            "localization": "",
+            "temp_outside": "",
+            "current_pressure": "",
+            "current_humidity": "",
+            "info_weather": "",
+            "IP": "",
+            "color": "",
+            "brightness": "0.5",
+            "effect": "1",
             "time_update": str(datetime.datetime.now())
         } 
         ConfigControl.insert_Config(path, data=dictionary)
-    thread.localization_thread()
+        
+    data = [("color", 0), ("effects", 1)]
+    ConfigControl.edit_Config(path, data)  
+
+
+if __name__ == '__main__':
+    path = os.path.join("/samba/python/")
+    
+    startingProces()
+
     thread.thread_Control_thread()  # !!!!
+
+

@@ -5,9 +5,11 @@
 ##InProgrogress!!!
 
 import json
+import Another
 
 file = "config.json"
 
+@Another.save_error_to_file("log_bledow.txt")
 def insert_Config(path, data):
     with open(str(path+file), 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
