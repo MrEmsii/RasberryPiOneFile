@@ -35,6 +35,7 @@ def localization(url):
         r = requests.get(url)
         data = json.loads(r.content.decode())
         city = data["city"]
-        return city
+        ip_query = data["query"]
+        return city, ip_query
     except:
         return "NO INFO"

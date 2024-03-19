@@ -11,6 +11,8 @@ import time
 from subprocess import check_output
 from gpiozero import CPUTemperature
 import psutil
+import setproctitle
+import inspect
 
 import DataBaseControl
 import Temperature_Calculation
@@ -22,72 +24,81 @@ import LEDs_Controler
 import IR_Controler
 
 MyLCD = API_LCD_I2C.lcd()
+path = os.path.join("/samba/python/")
+
 
 class thread:
     def Table_Maker_thread(path, file, columns, table_name):
         t_tm = threading.Thread(target=operation.Table_Maker, args=(path, file, columns, table_name,))
+        t_tm.name = inspect.stack()[0][3]
         t_tm.start()
         t_tm.join()
 
     def Temp_Saver_thread():
         t_ts = threading.Thread(target=operation.Temp_Calc)
+        t_ts.name = inspect.stack()[0][3]
         t_ts.start()
         t_ts.join()
-        print("Temp")
 
     def localization_thread():
         t_local = threading.Thread(target=operation.localization)
+        t_local.name = inspect.stack()[0][3]
         t_local.start()
         t_local.join()
-        print("Localization")
 
     def WeatherCalc_thread():
         t_ws = threading.Thread(target=operation.Weather_Calc)
+        t_ws.name = inspect.stack()[0][3]
         t_ws.start()
-        print("Weather") 
 
     def GetIP_thread():
         t_gIP = threading.Thread(target=operation.get_ip)
+        t_gIP.name = inspect.stack()[0][3]
         t_gIP.start()
-        print("IP")
     
     def thread_Control_thread():
-        t_tC = threading.Thread(target=Control.thread_Control)
+        t_tC = threading.Thread(target=control.thread_Control)
+        t_tC.name = inspect.stack()[0][3]
         t_tC.start()
 
     def LCD_Control_thread(time_stop_LCD, time_one_segment):
-        t_LCD = threading.Thread(target=Control.LCD_Control, args=(time_stop_LCD, time_one_segment,))
+        t_LCD = threading.Thread(target=control.LCD_Control, args=(time_stop_LCD, time_one_segment,))
+        t_LCD.name = thread.LCD_Control_thread.__name__
         t_LCD.start()
-        print("LCD")
 
     def LEDs_thread():
-        t_LED = threading.Thread(target=Control.LEDs)
+        t_LED = threading.Thread(target=control.LEDs)
+        t_LED.name = inspect.stack()[0][3]
         t_LED.start()
-        print("LEDs")
 
     def IRDa_Control():
-        t_IRDa = threading.Thread(target=Control.IRDa_Control)
+        t_IRDa = threading.Thread(target=control.IRDa_Control)
+        t_IRDa.name = inspect.stack()[0][3]
         t_IRDa.start()
-        print("IRDa")
 
 class operation:
     def Table_Maker(file, columns, table_name):
         DataBaseControl.table_maker(DataBaseControl.connectBase(file), columns, table_name)
+        control.name_thread_start((threading.current_thread().getName()))
 
     def Temp_Calc():
         Temperature_Calculation.save(path)
+        control.name_thread_start((threading.current_thread().getName()))
 
     def localization():
-        ConfigControl.edit_Config(path,[("localization", operation.Weather_City())])
+        data = operation.Weather_City()
+        ConfigControl.edit_Config(path,[("city", data[0]),("IP_query", data[1])])
+        control.name_thread_start((threading.current_thread().getName()))
 
     def Weather_Calc():
         api_key = ConfigControl.collect_Config(path, name="api_key")
         base_url = ConfigControl.collect_Config(path, name="base_url")
-        localization = ConfigControl.collect_Config(path, name="localization")
+        localization = ConfigControl.collect_Config(path, name="city")
         list_Weather = WeatherControl.weather(localization, api_key, base_url)
         time_update = str(datetime.datetime.now())
         list_Weather.append(("time_update",time_update))
         ConfigControl.edit_Config(path, list_Weather)
+        control.name_thread_start((threading.current_thread().getName()))
 
     def Weather_City():
         localization_url = ConfigControl.collect_Config(path,"localization_url")
@@ -99,20 +110,27 @@ class operation:
             cmd
         else:
             cmd = "No IP"
-        ConfigControl.edit_Config(path,[("IP",cmd)])
+        ConfigControl.edit_Config(path,[("IP_home",cmd)])
+        control.name_thread_start((threading.current_thread().getName()))
 
-class Control:
-
+class control:
     @Another.save_error_to_file("log_bledow.txt")
+
+    def name_thread_start(name):
+        return print(str(datetime.datetime.now()), 5*" ", str(name), (30-len(name))*" ", "started !")
+
     def LEDs():
+        control.name_thread_start((threading.current_thread().getName()))
         while True:
             LEDs_Controler.main()
             time.sleep(1)
 
     def IRDa_Control():
         IR_Controler.main()
+        control.name_thread_start((threading.current_thread().getName()))
 
     def LCD_Control(time_stop_LCD, wait):
+        control.name_thread_start((threading.current_thread().getName()))
         while datetime.datetime.now() < time_stop_LCD:
             MyLCD.lcd_display_string_pos("Data: " + str(datetime.date.today()), 3, 2)
             for i in range(int(wait/0.2)):
@@ -122,7 +140,7 @@ class Control:
             MyLCD.lcd_clear()
 
             for i in range(int(wait/3)):
-                city = ConfigControl.collect_Config(path,"localization")
+                city = ConfigControl.collect_Config(path,"city")
                 temp_outside = ConfigControl.collect_Config(path,"temp_outside")
                 current_p_h = ConfigControl.collect_Config(path,"current_humidity") + " " + ConfigControl.collect_Config(path,"current_pressure")
                 info_weather = ConfigControl.collect_Config(path,"info_weather")
@@ -136,7 +154,6 @@ class Control:
 
             MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
             for i in range(int(wait)):
-                
                 temp_1 = " Room = " + str(temp_list[0]) + "\u00dfC "
                 temp_2 = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
                 temp_3 = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
@@ -146,23 +163,24 @@ class Control:
                 MyLCD.lcd_display_string_pos(str(temp_3), 4, 2)
                 time.sleep(0.7)
             MyLCD.lcd_clear()
-     
-            ip = ConfigControl.collect_Config(path,"IP")
-            MyLCD.lcd_display_string_pos(ip, 1, int((20 - len(ip))/2) - 1)
-            for i in range(int(wait*3)):
-                cpu_per = "CPU= " + str(psutil.cpu_percent(interval = 0.2)) + "%"
-                RAM_per = "RAM= " + str(psutil.virtual_memory().percent) + "%"
-                disk_per = "DISK= " + str(psutil.disk_usage('/').percent) + "%"
-                
-                MyLCD.lcd_display_string_pos(cpu_per, 2, 4)
-                MyLCD.lcd_display_string_pos(disk_per, 3, 3)
-                MyLCD.lcd_display_string_pos(RAM_per, 4, 4)
-                time.sleep(0.3)
+
+            trash =  "CPU  " + "RAM " + "DISK "
+            MyLCD.lcd_display_string_pos(trash, 1, 3)
+            ip_home = ConfigControl.collect_Config(path,"IP_home")
+            ip_query = ConfigControl.collect_Config(path,"IP_query")
+            MyLCD.lcd_display_string_pos(ip_query, 3, int((20 - len(ip_query))/2) - 1)
+            MyLCD.lcd_display_string_pos(ip_home, 4, int((20 - len(ip_home))/2) - 1)
+            for i in range(int(wait*4)):
+                mesh = str(str(psutil.cpu_percent(interval = 0.2)) + "% " + str(psutil.virtual_memory().percent) + "% " + str(psutil.disk_usage('/').percent) + "%")
+                MyLCD.lcd_display_string_pos(mesh, 2, 2)
+                time.sleep(.3)
             MyLCD.lcd_clear()
+
         MyLCD.backlight(0)
 
     @Another.save_error_to_file("log_bledow.txt")
     def thread_Control():
+        control.name_thread_start((threading.current_thread().getName()))
 
         thread.IRDa_Control()
         thread.LEDs_thread()
@@ -198,7 +216,7 @@ class Control:
                 time_stop_LEDs = time_stop_LEDs + datetime.timedelta(days=1)
                 data = [("color", 0), ("effects", 1)]
                 ConfigControl.edit_Config(path, data)  
-            
+
             time.sleep(5)
 
 def startingProces():
@@ -212,12 +230,13 @@ def startingProces():
             "api_key": input("ENTER api_key \n"),
             "base_url": input("ENTER base_url \n"),
             "localization_url": input("ENTER localization_url \n"),
-            "localization": "",
+            "city": "",
             "temp_outside": "",
             "current_pressure": "",
             "current_humidity": "",
             "info_weather": "",
             "IP": "",
+            "IP_query": "",
             "color": "",
             "brightness": "0.5",
             "effect": "1",
@@ -230,10 +249,6 @@ def startingProces():
 
 
 if __name__ == '__main__':
-    path = os.path.join("/samba/python/")
-    
     startingProces()
-
     thread.thread_Control_thread()  # !!!!
-
-
+    setproctitle.setproctitle("Emsii-LCD")

@@ -10,8 +10,8 @@
 
 import RPi.GPIO as GPIO
 from datetime import datetime
-import time, sqlite3, os
-import Another, ConfigControl, LEDs_Controler
+import time
+import Another, ConfigControl
 
 pin = 20
 # Static program vars
@@ -109,9 +109,9 @@ def main():
 				elif int(indexButton) >= 12 and int(indexButton) <= 13:
 					brightness = float(ConfigControl.collect_Config(path, "brightness"))
 					if int(indexButton) <= 12:
-						brightness = brightness - 0.1
+						brightness = brightness - 0.05
 					else:
-						brightness = brightness + 0.1
+						brightness = brightness + 0.05
 					if brightness > 0.8:
 						brightness = 0.8
 					elif brightness <= 0.01:

@@ -5,8 +5,6 @@
 ##InProgrogress!!!
 
 import sqlite3
-import datetime
-import os
 
 def connectBase(path, file):
     connect = sqlite3.connect(str(path) + str(file))

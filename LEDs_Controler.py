@@ -6,7 +6,6 @@ import time
 import board
 import neopixel
 import numpy as np
-import traceback
 
 import ConfigControl
 import Another
