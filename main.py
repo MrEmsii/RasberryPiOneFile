@@ -154,18 +154,18 @@ class control:
 
             MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
             for i in range(int(wait)):
-                temp_1 = " Room = " + str(temp_list[0]) + "\u00dfC "
-                temp_2 = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
-                temp_3 = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
+                Room_temp = " Room = " + str(temp_list[0]) + "\u00dfC "
+                OutDoor_temp = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
+                RaspPI_temp = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
                 
-                MyLCD.lcd_display_string_pos(str(temp_1), 2, 4)
-                MyLCD.lcd_display_string_pos(str(temp_2), 3, 1)
-                MyLCD.lcd_display_string_pos(str(temp_3), 4, 2)
+                MyLCD.lcd_display_string_pos(str(Room_temp), 2, 4)
+                MyLCD.lcd_display_string_pos(str(OutDoor_temp), 3, 1)
+                MyLCD.lcd_display_string_pos(str(RaspPI_temp), 4, 2)
                 time.sleep(0.7)
             MyLCD.lcd_clear()
 
-            trash =  "CPU  " + "RAM " + "DISK "
-            MyLCD.lcd_display_string_pos(trash, 1, 3)
+            description =  "CPU  " + "RAM " + "DISK "
+            MyLCD.lcd_display_string_pos(description, 1, 3)
             ip_home = ConfigControl.collect_Config(path,"IP_home")
             ip_query = ConfigControl.collect_Config(path,"IP_query")
             MyLCD.lcd_display_string_pos(ip_query, 3, int((20 - len(ip_query))/2) - 1)
@@ -178,7 +178,7 @@ class control:
 
         MyLCD.backlight(0)
 
-    @Another.save_error_to_file("log_bledow.txt")
+    @Another.save_error_to_file("error_log.txt")
     def thread_Control():
         control.name_thread_start((threading.current_thread().getName()))
 
@@ -251,4 +251,4 @@ def startingProces():
 if __name__ == '__main__':
     startingProces()
     thread.thread_Control_thread()  # !!!!
-    setproctitle.setproctitle("Emsii-LCD")
+    setproctitle.setproctitle("Emsii_LCD")
