@@ -26,7 +26,6 @@ import IR_Controler
 MyLCD = API_LCD_I2C.lcd()
 path = os.path.join("/samba/python/")
 
-
 class thread:
     def Table_Maker_thread(path, file, columns, table_name):
         t_tm = threading.Thread(target=operation.Table_Maker, args=(path, file, columns, table_name,))
@@ -246,7 +245,6 @@ def startingProces():
         
     data = [("color", 0), ("effects", 1)]
     ConfigControl.edit_Config(path, data)  
-
 
 if __name__ == '__main__':
     startingProces()
