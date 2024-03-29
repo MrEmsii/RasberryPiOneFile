@@ -16,6 +16,11 @@ def error_insert(dane):
 		f = open('/samba/python/Error.txt', "a")
 		f.write(20*"*--*" + "\n" + time.strftime("%Y-%m-%d") + "   " + time.strftime("%H:%M:%S\n") + "\n" + str(dane) + "\n" + 20*"*--*")
 
+
+def save_logs_to_file(plik):
+    f = open("/samba/python/" + "log.txt", "a")
+    f.write(str(plik) + "\n")
+
 def save_error_to_file(file_name):
     path_file = os.path.abspath("/samba/python/" + file_name)
     def dekor(function):

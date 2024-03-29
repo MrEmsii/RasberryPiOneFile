@@ -6,9 +6,25 @@ import time
 import board
 import neopixel
 import numpy as np
+import random
+import RPi.GPIO as GPIO
 
 import ConfigControl
 import Another
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+GPIO.setup(16, GPIO.OUT)
+GPIO.setup(12, GPIO.OUT)
+GPIO.setup(26, GPIO.OUT)
+
+led_red_PWM = GPIO.PWM(12, 50)
+led_green_PWM = GPIO.PWM(26, 50)
+led_blue_PWM = GPIO.PWM(16, 50)
+
+led_red_PWM.start(0)
+led_green_PWM.start(0)
+led_blue_PWM.start(0)
 
 path = "/samba/python/"
 
@@ -26,18 +42,14 @@ ORDER = neopixel.GRB
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = float(ConfigControl.collect_Config(path,"brightness")), auto_write=False, pixel_order=ORDER)
 
 @Another.save_error_to_file("log_bledow.txt")
-# def thred(wait):
-#         t1 = threading.Thread(target=rainbow_cycle, args=(wait,))
-#         t1.start()
 
 def leds_print(rgb, br):
     pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = br, auto_write=False, pixel_order=ORDER)
     pixels.fill(rgb)
     pixels.show()
+    led_string(rgb, br)
 
 def wheel(pos):
-    # Input a value 0 to 255 to get a color value.
-    # The colours are a transition r - g - b - back to r.
     if pos < 0 or pos > 255:
         r = g = b = 0
     elif pos < 85:
@@ -65,40 +77,54 @@ def rainbow_cycle(wait):
    
         leds_print(pixels[i], bra)
 
-        #print(pixels[i], float(ConfigControl.collect_Config(path,"brightness")))
         time.sleep(wait)
 
 def constant():
         color_index = int(ConfigControl.collect_Config(path, "color"))
         color_list = [ (0, 0, 0),
                        (255, 0, 0),   (0, 255, 0),   (0, 0, 255), 
-                       (255, 255, 0), (10 ,255, 30) , (255, 0, 255), 
+                       (204, 51, 0), (10 ,255, 30) , (255, 0, 255), 
                        (50, 50, 205), (50, 120, 50), (0, 255, 255), 
                        (255,255,255)
                     ]
         return color_list[color_index]
 
-def stair(wait):
-    color = constant()
-    for i in np.arange(0, 0.5, wait/5):
-        # pixel_index = (i * 256 // num_pixels) + j
-        # pixels[i] = wheel(pixel_index & 255)
+def stair(wait, color):
+    for i in np.arange(0, 0.8, wait/2):
         leds_print(color, i)
         time.sleep(wait)    
     
-    for i in np.arange(0.5, 0, -wait/5):
-        # pixel_index = (i * 256 // num_pixels) + j
-        # pixels[i] = wheel(pixel_index & 255)
+    for i in np.arange(0.8, 0, -wait/2):
         leds_print(color, i)
         time.sleep(wait)    
     
 def main():
-    effects = int(ConfigControl.collect_Config(path, "effects"))
+    try:
+        effects = int(ConfigControl.collect_Config(path, "effects"))
+    except TypeError:
+        print(effects)
+        effects = 0
+        print("Wtf")
+
+    speed = float(ConfigControl.collect_Config(path, "leds_speed"))
     if effects == 1:
         leds_print(constant(), float(ConfigControl.collect_Config(path,"brightness")))
     elif effects == 2:
-        stair(0.01)
+        stair(0.004*speed, constant())
     elif effects == 3:
-        rainbow_cycle(0.01)
+        stair(0.004*speed, (random.randint(0,255), random.randint(0,255), random.randint(0,255)))    
+    elif effects == 4:
+        rainbow_cycle(0.01/speed)
+    else:
+        leds_print([0,0,0], 0)
+        time.sleep(1)
 
+def led_string(color, i):
+    led_red_PWM.ChangeDutyCycle(int(color[0]/255*100*i))
+    led_green_PWM.ChangeDutyCycle(int(color[1]/255*100*i))
+    led_blue_PWM.ChangeDutyCycle(int(color[2]/255*100*i))
 
+def led_string_stop():
+    led_red_PWM.ChangeDutyCycle(0)
+    led_green_PWM.ChangeDutyCycle(0)
+    led_blue_PWM.ChangeDutyCycle(0)

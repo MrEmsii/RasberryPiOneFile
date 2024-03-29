@@ -79,16 +79,16 @@ class thread:
 class operation:
     def Table_Maker(file, columns, table_name):
         DataBaseControl.table_maker(DataBaseControl.connectBase(file), columns, table_name)
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Temp_Calc():
         Temperature_Calculation.save(path)
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def localization():
         data = operation.Weather_City()
         ConfigControl.edit_Config(path,[("city", data[0]),("IP_query", data[1])])
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Weather_Calc():
         api_key = ConfigControl.collect_Config(path, name="api_key")
@@ -98,7 +98,7 @@ class operation:
         time_update = str(datetime.datetime.now())
         list_Weather.append(("time_update",time_update))
         ConfigControl.edit_Config(path, list_Weather)
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Weather_City():
         localization_url = ConfigControl.collect_Config(path,"localization_url")
@@ -111,26 +111,34 @@ class operation:
         else:
             cmd = "No IP"
         ConfigControl.edit_Config(path,[("IP_home",cmd)])
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
 class control:
     @Another.save_error_to_file("log_bledow.txt")
 
-    def name_thread_start(name):
-        return print(str(datetime.datetime.now()), 5*" ", str(name), (30-len(name))*" ", "started !")
+    def kill_process(name):
+        for proc in psutil.process_iter():
+            # check whether the process name matches
+            if proc.name() == name:
+                proc.kill()
+
+    def name_thread_start(name, pid):
+        log = str(datetime.datetime.now()), 5*" ", str(name), (30-len(name))*" ", "started on pid: ", pid, "!"
+        Another.save_logs_to_file(log)
+        return print(log)
 
     def LEDs():
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
         while True:
             LEDs_Controler.main()
-            time.sleep(1)
+            time.sleep(0.4)
 
     def IRDa_Control():
         IR_Controler.main()
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def LCD_Control(time_stop_LCD, wait):
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
         while datetime.datetime.now() < time_stop_LCD:
             MyLCD.lcd_display_string_pos("Data: " + str(datetime.date.today()), 3, 2)
             for i in range(int(wait/0.2)):
@@ -180,25 +188,26 @@ class control:
 
     @Another.save_error_to_file("error_log.txt")
     def thread_Control():
-        control.name_thread_start((threading.current_thread().getName()))
+        control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
         thread.IRDa_Control()
         thread.LEDs_thread()
         thread.localization_thread()
 
         start_time = time_start_WeatherCalc = time_start_get_ip = time_start_TempSaver = time_start_LCD = datetime.datetime.now()
+
         date = datetime.datetime(start_time.year, start_time.month, start_time.day)
 
-        time_start_LCD = date + datetime.timedelta(hours=7)
-        time_stop_LEDs = date + datetime.timedelta(hours=23)
+        time_start_LCD = date + datetime.timedelta(hours=ConfigControl.collect_Config(path,"hour_start_LCD"))
+        time_stop_LCD = time_stop_LEDs = date + datetime.timedelta(hours=ConfigControl.collect_Config(path,"hour_stop_LCD"))
 
         while True:
+            date = datetime.datetime(start_time.year, start_time.month, start_time.day)
+
             if datetime.datetime.now() >= time_start_LCD:
-                time_start_LCD = datetime.datetime(time_start_LCD.year, time_start_LCD.month, time_start_LCD.day) + datetime.timedelta(hours=7)
-                time_stop_LCD = time_start_LCD + datetime.timedelta(hours=15)
-                
-                thread.LCD_Control_thread(time_stop_LCD, time_one_segment = 3)
-                time_start_LCD = datetime.datetime(time_start_LCD.year, time_start_LCD.month, time_start_LCD.day) + datetime.timedelta(days=1, hours=7)
+                time_start_LCD = time_start_LCD + datetime.timedelta(days=1)
+                thread.LCD_Control_thread(time_stop_LCD, time_one_segment=3)
+                time_stop_LCD = time_stop_LCD + datetime.timedelta(days=1)
 
             if datetime.datetime.now() >= time_start_WeatherCalc:
                 thread.WeatherCalc_thread()
@@ -214,8 +223,17 @@ class control:
                 
             if datetime.datetime.now() >= time_stop_LEDs:
                 time_stop_LEDs = time_stop_LEDs + datetime.timedelta(days=1)
-                data = [("color", 0), ("effects", 1)]
+                data = [("color", 0), ("effects", 0)]
+                brightness = ConfigControl.collect_Config(path, "brightness")
+                if brightness < 0.5:
+                    brightness = 0.5
+                    data.append(("brightness", 0.5))
                 ConfigControl.edit_Config(path, data)  
+
+            if os.path.isfile(path+"error_log.txt") == True:
+                print("Crash")
+                MyLCD.lcd_clear()
+                control.kill_process("Emsii_LCD")
 
             time.sleep(5)
 
@@ -238,13 +256,16 @@ def startingProces():
             "IP": "",
             "IP_query": "",
             "color": "",
-            "brightness": "0.5",
-            "effect": "1",
+            "brightness": 0.5,
+            "effect": 0,
+            "leds_speed": 1,
+            "hour_start_LCD": 8,
+            "hour_stop_LCD": 23,
             "time_update": str(datetime.datetime.now())
         } 
         ConfigControl.insert_Config(path, data=dictionary)
         
-    data = [("color", 0), ("effects", 1)]
+    data = [("color", 0), ("effects", 0)]
     ConfigControl.edit_Config(path, data)  
 
 

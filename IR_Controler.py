@@ -81,6 +81,7 @@ def convertHex(binaryValue):
 
 @Another.save_error_to_file("log_bledow.txt")
 def main():
+	max_effects = 4
 	while True:
 		inData = convertHex(getBinary()) #Runs subs to get incoming hex value
 		for button in range(len(Buttons)):#Runs through every value in list
@@ -98,10 +99,10 @@ def main():
 				elif int(indexButton) == 15 or int(indexButton) == 16:
 					effects = int(ConfigControl.collect_Config(path, "effects"))
 					if int(indexButton) == 15:
-						if effects <= 3 and effects > 1:
+						if effects <= max_effects and effects > 1:
 							effects = effects - 1
 					elif int(indexButton) == 16:
-						if effects < 3 and effects >= 1:
+						if effects < max_effects and effects >= 1:
 							effects = effects + 1	
 
 					ConfigControl.edit_Config(path, [("effects", int(effects))])
