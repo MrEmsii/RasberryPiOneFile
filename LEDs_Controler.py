@@ -41,7 +41,7 @@ ORDER = neopixel.GRB
 
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = float(ConfigControl.collect_Config(path,"brightness")), auto_write=False, pixel_order=ORDER)
 
-@Another.save_error_to_file("log_bledow.txt")
+@Another.save_error_to_file("error_log.txt")
 
 def leds_print(rgb, br):
     pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = br, auto_write=False, pixel_order=ORDER)

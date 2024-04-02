@@ -12,7 +12,7 @@ import Another
 
 sensors = w1thermsensor.W1ThermSensor()
 
-@Another.save_error_to_file("log_bledow.txt")
+@Another.save_error_to_file("error_log.txt")
 def termW1():
     return str(float(sensors.get_temperature() - 3.5))[0:5]
 

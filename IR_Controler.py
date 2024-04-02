@@ -79,7 +79,7 @@ def convertHex(binaryValue):
 	tmpB2 = int(str(binaryValue),2) #Temporarely propper base 2
 	return hex(tmpB2)
 
-@Another.save_error_to_file("log_bledow.txt")
+@Another.save_error_to_file("error_log.txt")
 def main():
 	max_effects = 4
 	while True:

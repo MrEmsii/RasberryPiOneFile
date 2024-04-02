@@ -13,6 +13,7 @@ from gpiozero import CPUTemperature
 import psutil
 import setproctitle
 import inspect
+import concurrent.futures
 
 import DataBaseControl
 import Temperature_Calculation
@@ -25,7 +26,6 @@ import IR_Controler
 
 MyLCD = API_LCD_I2C.lcd()
 path = os.path.join("/samba/python/")
-
 
 class thread:
     def Table_Maker_thread(path, file, columns, table_name):
@@ -147,27 +147,37 @@ class control:
                 time.sleep(0.2)
             MyLCD.lcd_clear()
 
-            for i in range(int(wait/3)):
-                city = ConfigControl.collect_Config(path,"city")
-                temp_outside = ConfigControl.collect_Config(path,"temp_outside")
-                current_p_h = ConfigControl.collect_Config(path,"current_humidity") + " " + ConfigControl.collect_Config(path,"current_pressure")
-                info_weather = ConfigControl.collect_Config(path,"info_weather")
-                MyLCD.lcd_display_string_pos(str(city), 1, int((20 - len(str(city)))/2))
-                MyLCD.lcd_display_string_pos(str(info_weather), 2, int((20 - len(str(info_weather)))/2))
-                MyLCD.lcd_display_string_pos(str(temp_outside), 3, int((20 - len(str(temp_outside)))/2))
-                MyLCD.lcd_display_string_pos(str(current_p_h), 4, int((20 - len(str(current_p_h)))/2))
-                time.sleep(3)
-            temp_list = Temperature_Calculation.tempALL()    
+
+            city = ConfigControl.collect_Config(path,"city")
+            temp_outside = ConfigControl.collect_Config(path,"temp_outside")
+            current_p_h = ConfigControl.collect_Config(path,"current_humidity") + " " + ConfigControl.collect_Config(path,"current_pressure")
+            info_weather = ConfigControl.collect_Config(path,"info_weather")
+            MyLCD.lcd_display_string_pos(str(city), 1, int((20 - len(str(city)))/2))
+            MyLCD.lcd_display_string_pos(str(temp_outside), 3, int((20 - len(str(temp_outside)))/2))
+            MyLCD.lcd_display_string_pos(str(current_p_h), 4, int((20 - len(str(current_p_h)))/2))
+
+            info_weather = " "*5 + info_weather + " "*20
+            for i in range (0, len(info_weather) - 35):
+                lcd_text = info_weather[i:(i+20)]
+                MyLCD.lcd_display_string(lcd_text,2)
+                time.sleep(0.4)
+                
+
+
+# do some other stuff in the main process
+
+            temp_list = Temperature_Calculation.tempALL()
+
             MyLCD.lcd_clear()
 
             MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
+            Room_temp = " Room = " + str(temp_list[0]) + "\u00dfC "
+            OutDoor_temp = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
+            MyLCD.lcd_display_string_pos(str(Room_temp), 2, 4)
+            MyLCD.lcd_display_string_pos(str(OutDoor_temp), 3, 1)
+
             for i in range(int(wait)):
-                Room_temp = " Room = " + str(temp_list[0]) + "\u00dfC "
-                OutDoor_temp = " OutDoor = " + str(temp_list[1]) + "\u00dfC "
                 RaspPI_temp = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
-                
-                MyLCD.lcd_display_string_pos(str(Room_temp), 2, 4)
-                MyLCD.lcd_display_string_pos(str(OutDoor_temp), 3, 1)
                 MyLCD.lcd_display_string_pos(str(RaspPI_temp), 4, 2)
                 time.sleep(0.7)
             MyLCD.lcd_clear()
