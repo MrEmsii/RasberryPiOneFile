@@ -28,14 +28,14 @@ def weather(city, api_key, base_url):
         current_pressure = "NO INFO"
         current_humidity = "NO INFO"
         info_weather = "NO INFO"
-    return [("temp_outside",temp_outside),("current_pressure",current_pressure),("current_humidity",current_humidity),("info_weather",info_weather)]
+    return [("temp_outside", temp_outside), ("current_pressure", current_pressure), ("current_humidity", current_humidity), ("info_weather", info_weather)]
 
 def localization(url):
     try:
         r = requests.get(url)
         data = json.loads(r.content.decode())
-        city = data["city"]
-        ip_query = data["query"]
+        city = data['city']
+        ip_query = data['ip']
         return city, ip_query
     except:
         return "NO INFO"

@@ -32,6 +32,17 @@ This program, written in Python, is designed to measure temperature using the DS
 
 1. Clone the repository onto the Raspberry Pi.
 2. Install necessary Python libraries.
+    - setproctitle
+    - w1thermsensor
+    - numpy
+    - libopenblas-dev
+    - python3-pyaudio
+    - rpi_ws281x adafruit-circuitpython-neopixel
+    - adafruit-blinka
+    
+    !IMPORTANT!
+    - board != adafruit-blinka
+
 3. Run the main program file.
 
 ## Contribution

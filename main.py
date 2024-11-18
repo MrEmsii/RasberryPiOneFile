@@ -269,6 +269,7 @@ class control:
 
 def startingProces():
     MyLCD.backlight(0)
+    time.sleep(10)
     if os.path.isfile(path + "error_log.txt") == True:
         os.remove(path + "error_log.txt")
         
@@ -278,15 +279,14 @@ def startingProces():
 
     if os.path.isfile(path + "config.json") == False:
         dictionary = {
-            "api_key": input("ENTER api_key \n"),
-            "base_url": input("ENTER base_url \n"),
-            "localization_url": input("ENTER localization_url \n"),
+            "api_key": input("ENTER api_key from https://home.openweathermap.org/api_keys \n"),
+            "base_url": "http://api.openweathermap.org/data/2.5/weather?",
+            "localization_url": "http://ipinfo.io/json",
             "city": "",
             "temp_outside": "",
             "current_pressure": "",
             "current_humidity": "",
             "info_weather": "",
-            "IP": "",
             "IP_query": "",
             "color": "",
             "brightness": 0.5,

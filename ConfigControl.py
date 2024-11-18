@@ -28,5 +28,7 @@ def collect_Config(path, name):
         with open(str(path+file), 'r') as openfile:
             json_object = json.load(openfile)
         return json_object[str(name)]
+    except FileNotFoundError:
+        print("UPS!")
     except json.decoder.JSONDecodeError:
         collect_Config(path, name)
