@@ -22,8 +22,6 @@ ButtonsNames = ["1",   		"2",     	 "3",      		 "4",    	  "5",		"6", 	 		"7", 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(pin, GPIO.IN)
 
-path = "/samba/python/"
-
 def getBinary():
 	# Internal vars
 	num1s = 0  # Number of consecutive 1s read
@@ -91,13 +89,13 @@ def main():
 
 				if int(indexButton) >= 0 and int(indexButton) <= 9:
 					color = ButtonsNames[button]
-					ConfigControl.edit_Config(path, [("color", int(color))])
+					ConfigControl.edit_Config([("color", int(color))])
 					
 				elif int(indexButton) == 14:
-					ConfigControl.edit_Config(path, [("color", 10)])
+					ConfigControl.edit_Config([("color", 10)])
 
 				elif int(indexButton) == 15 or int(indexButton) == 16:
-					effects = int(ConfigControl.collect_Config(path, "effects"))
+					effects = int(ConfigControl.collect_Config("effects"))
 					if int(indexButton) == 15:
 						if effects <= max_effects and effects > 1:
 							effects = effects - 1
@@ -108,7 +106,7 @@ def main():
 					ConfigControl.edit_Config(path, [("effects", int(effects))])
 						
 				elif int(indexButton) >= 12 and int(indexButton) <= 13:
-					brightness = float(ConfigControl.collect_Config(path, "brightness"))
+					brightness = float(ConfigControl.collect_Config("brightness"))
 					if int(indexButton) <= 12:
 						brightness = brightness - 0.05
 					else:
@@ -117,6 +115,6 @@ def main():
 						brightness = 0.8
 					elif brightness <= 0.01:
 						brightness = 0.01		
-					ConfigControl.edit_Config(path, [("brightness", float(brightness))])
+					ConfigControl.edit_Config([("brightness", float(brightness))])
 
 

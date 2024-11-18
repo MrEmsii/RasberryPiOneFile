@@ -40,7 +40,7 @@ num_pixels = 15
 ORDER = neopixel.GRB
 
 try:
-    pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = float(ConfigControl.collect_Config(path,"brightness")), auto_write=False, pixel_order=ORDER)
+    pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = float(ConfigControl.collect_Config("brightness")), auto_write=False, pixel_order=ORDER)
 except:
     pass
 
@@ -72,7 +72,7 @@ def wheel(pos):
     return (r, g, b) if ORDER in (neopixel.RGB, neopixel.GRB) else (r, g, b, 0)
 
 def rainbow_cycle(wait):
-    bra = float(ConfigControl.collect_Config(path,"brightness"))
+    bra = float(ConfigControl.collect_Config("brightness"))
     for j in range(255):
         for i in range(num_pixels):
             pixel_index = (i * 256 // num_pixels) + j
@@ -83,7 +83,7 @@ def rainbow_cycle(wait):
         time.sleep(wait)
 
 def constant():
-        color_index = int(ConfigControl.collect_Config(path, "color"))
+        color_index = int(ConfigControl.collect_Config("color"))
         color_list = [ (0, 0, 0),
                        (255, 0, 0),   (0, 255, 0),   (0, 0, 255), 
                        (204, 51, 0), (10 ,255, 30) , (255, 0, 255), 

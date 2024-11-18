@@ -97,7 +97,7 @@ class operation:
 
     def localization():
         data = operation.Weather_City()
-        ConfigControl.edit_Config([("city", data[0]),("IP_query", data[1])])
+        ConfigControl.edit_Config([("city", data[0]), ("IP_query", data[1])])
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Weather_Calc():
@@ -222,9 +222,8 @@ class control:
 
         thread.IRDa_Control()
         thread.LEDs_thread()
-        thread.localization_thread()
 
-        start_time = time_start_WeatherCalc = time_start_get_ip = time_start_TempSaver = time_start_LCD = datetime.datetime.now()
+        start_time = time_start_WeatherCalc = time_start_get_ip = time_start_TempSaver = time_start_LCD = time_start_get_localization = datetime.datetime.now()
 
         date = datetime.datetime(start_time.year, start_time.month, start_time.day)
 
@@ -234,6 +233,10 @@ class control:
         while True:
             date = datetime.datetime(start_time.year, start_time.month, start_time.day)
 
+            if datetime.datetime.now() >= time_start_get_localization:
+                thread.localization_thread()
+                time_start_get_localization += datetime.timedelta(minutes=60) 
+                
             if datetime.datetime.now() >= time_start_LCD:
                 time_start_LCD = time_start_LCD + datetime.timedelta(days=1)
                 thread.LCD_Control_thread(time_stop_LCD, time_one_segment=3)
@@ -247,6 +250,7 @@ class control:
                 thread.GetIP_thread()
                 time_start_get_ip += datetime.timedelta(minutes=5)
                 
+
             if datetime.datetime.now() >= time_start_TempSaver:
                 thread.Temp_Saver_thread()
                 time_start_TempSaver += datetime.timedelta(minutes=3)
@@ -283,7 +287,7 @@ def startingProces():
         dictionary = {
             "api_key": input("ENTER api_key from https://home.openweathermap.org/api_keys \n"),
             "base_url": "http://api.openweathermap.org/data/2.5/weather?",
-            "localization_url": "http://ipinfo.io/json",
+            "localization_url": "http://www.geoplugin.net/json.gp",
             "city": "",
             "temp_outside": "",
             "current_pressure": "",
