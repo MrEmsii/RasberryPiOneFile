@@ -5,8 +5,11 @@
 ##InProgrogress!!!
 
 import sqlite3
+import Another
 
-def connectBase(path, file):
+path = Another.full_path()
+
+def connectBase(file):
     connect = sqlite3.connect(str(path) + str(file))
     return connect
 

@@ -26,7 +26,7 @@ led_red_PWM.start(0)
 led_green_PWM.start(0)
 led_blue_PWM.start(0)
 
-path = "/samba/python/"
+path = Another.full_path()
 
 # Choose an open pin connected to the Data In of the NeoPixel strip, i.e. board.D18
 # NeoPixels must be connected to D10, D12, D18 or D21 to work.
@@ -103,15 +103,15 @@ def stair(wait, color):
     
 def main():
     try:
-        effects = int(ConfigControl.collect_Config(path, "effects"))
+        effects = int(ConfigControl.collect_Config("effects"))
     except TypeError:
         print(effects)
         effects = 0
         print("Wtf")
 
-    speed = float(ConfigControl.collect_Config(path, "leds_speed"))
+    speed = float(ConfigControl.collect_Config("leds_speed"))
     if effects == 1:
-        leds_print(constant(), float(ConfigControl.collect_Config(path,"brightness")))
+        leds_print(constant(), float(ConfigControl.collect_Config("brightness")))
     elif effects == 2:
         stair(0.004*speed, constant())
     elif effects == 3:

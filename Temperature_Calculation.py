@@ -22,8 +22,8 @@ def tempALL():
         temp_list.append(round(sensor.get_temperature() - 3.5, 1)) 
     return temp_list
 
-def save(path):
-    connect = DataBaseControl.connectBase(path, "Heat.db")
+def save():
+    connect = DataBaseControl.connectBase("Heat.db")
     temp = termW1()
     data = [(str(time.strftime("%Y-%m-%d")), str(time.strftime("%H:%M:%S")), temp, temp.replace('.',','), str(chr(176) + "C")),]
     DataBaseControl.insert_Base(connect, "temperatura", data, place="NULL,")

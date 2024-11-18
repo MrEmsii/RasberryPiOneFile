@@ -25,11 +25,11 @@ import LEDs_Controler
 import IR_Controler
 
 MyLCD = API_LCD_I2C.lcd()
-path = os.path.join("/samba/python/")
+path = Another.full_path()
 
 class thread:
-    def Table_Maker_thread(path, file, columns, table_name):
-        t_tm = threading.Thread(target=operation.Table_Maker, args=(path, file, columns, table_name,))
+    def Table_Maker_thread(file, columns, table_name):
+        t_tm = threading.Thread(target=operation.Table_Maker, args=(file, columns, table_name,))
         t_tm.name = inspect.stack()[0][3]
         t_tm.start()
         t_tm.join()
@@ -87,7 +87,7 @@ class operation:
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Temp_Calc():
-        Temperature_Calculation.save(path)
+        Temperature_Calculation.save()
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Temp_Global():
@@ -97,21 +97,21 @@ class operation:
 
     def localization():
         data = operation.Weather_City()
-        ConfigControl.edit_Config(path,[("city", data[0]),("IP_query", data[1])])
+        ConfigControl.edit_Config([("city", data[0]),("IP_query", data[1])])
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Weather_Calc():
-        api_key = ConfigControl.collect_Config(path, name="api_key")
-        base_url = ConfigControl.collect_Config(path, name="base_url")
-        localization = ConfigControl.collect_Config(path, name="city")
+        api_key = ConfigControl.collect_Config(name="api_key")
+        base_url = ConfigControl.collect_Config(name="base_url")
+        localization = ConfigControl.collect_Config(name="city")
         list_Weather = WeatherControl.weather(localization, api_key, base_url)
         time_update = str(datetime.datetime.now())
         list_Weather.append(("time_update",time_update))
-        ConfigControl.edit_Config(path, list_Weather)
+        ConfigControl.edit_Config(list_Weather)
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
     def Weather_City():
-        localization_url = ConfigControl.collect_Config(path,"localization_url")
+        localization_url = ConfigControl.collect_Config("localization_url")
         return WeatherControl.localization(str(localization_url))
 
     def get_ip():
@@ -120,7 +120,7 @@ class operation:
             cmd
         else:
             cmd = "No IP"
-        ConfigControl.edit_Config(path,[("IP_home",cmd)])
+        ConfigControl.edit_Config([("IP_home",cmd)])
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
 class lcd_class:
@@ -134,10 +134,10 @@ class lcd_class:
             time.sleep(0.2)
 
     def weather():
-        city = ConfigControl.collect_Config(path,"city")
-        temp_outside = ConfigControl.collect_Config(path,"temp_outside")
-        current_p_h = ConfigControl.collect_Config(path,"current_humidity") + " " + ConfigControl.collect_Config(path,"current_pressure")
-        info_weather = ConfigControl.collect_Config(path,"info_weather")
+        city = ConfigControl.collect_Config("city")
+        temp_outside = ConfigControl.collect_Config("temp_outside")
+        current_p_h = ConfigControl.collect_Config("current_humidity") + " " + ConfigControl.collect_Config("current_pressure")
+        info_weather = ConfigControl.collect_Config("info_weather")
         MyLCD.lcd_display_string_pos(str(city), 1, int((20 - len(str(city)))/2))
         MyLCD.lcd_display_string_pos(str(temp_outside), 3, int((20 - len(str(temp_outside)))/2))
         MyLCD.lcd_display_string_pos(str(current_p_h), 4, int((20 - len(str(current_p_h)))/2))
@@ -163,8 +163,8 @@ class lcd_class:
     def pc_stats(wait):
         description =  "CPU  " + "RAM " + "DISK "
         MyLCD.lcd_display_string_pos(description, 1, 3)
-        ip_home = ConfigControl.collect_Config(path,"IP_home")
-        ip_query = ConfigControl.collect_Config(path,"IP_query")
+        ip_home = ConfigControl.collect_Config("IP_home")
+        ip_query = ConfigControl.collect_Config("IP_query")
         MyLCD.lcd_display_string_pos(ip_query, 3, int((20 - len(ip_query))/2) - 1)
         MyLCD.lcd_display_string_pos(ip_home, 4, int((20 - len(ip_home))/2) - 1)
         for i in range(int(wait*4)):
@@ -228,8 +228,8 @@ class control:
 
         date = datetime.datetime(start_time.year, start_time.month, start_time.day)
 
-        time_start_LCD = date + datetime.timedelta(hours=ConfigControl.collect_Config(path,"hour_start_LCD"))
-        time_stop_LCD = time_stop_LEDs = date + datetime.timedelta(hours=ConfigControl.collect_Config(path,"hour_stop_LCD"))
+        time_start_LCD = date + datetime.timedelta(hours=ConfigControl.collect_Config("hour_start_LCD"))
+        time_stop_LCD = time_stop_LEDs = date + datetime.timedelta(hours=ConfigControl.collect_Config("hour_stop_LCD"))
 
         while True:
             date = datetime.datetime(start_time.year, start_time.month, start_time.day)
@@ -254,11 +254,11 @@ class control:
             if datetime.datetime.now() >= time_stop_LEDs:
                 time_stop_LEDs = time_stop_LEDs + datetime.timedelta(days=1)
                 data = [("color", 0), ("effects", 0)]
-                brightness = ConfigControl.collect_Config(path, "brightness")
+                brightness = ConfigControl.collect_Config("brightness")
                 if brightness < 0.5:
                     brightness = 0.5
                     data.append(("brightness", 0.5))
-                ConfigControl.edit_Config(path, data)  
+                ConfigControl.edit_Config(data)  
 
             if os.path.isfile(path+"error_log.txt") == True:
                 print("Crash")
@@ -266,16 +266,18 @@ class control:
                 control.kill_process("Emsii_LCD")
 
             time.sleep(0.3)
-
+@Another.save_error_to_file("error_log.txt")
 def startingProces():
     MyLCD.backlight(0)
-    time.sleep(10)
+    # time.sleep(10)
     if os.path.isfile(path + "error_log.txt") == True:
         os.remove(path + "error_log.txt")
         
     if os.path.isfile(path + "Heat.db") == False:
         columns = ("data", "godzina", "temp_dot", "temp_comma", "jednostka")
-        thread.Table_Maker_thread(path, "Heat.db", columns, "temperatura") 
+        thread.Table_Maker_thread("Heat.db", columns, "temperatura") 
+        print("Created")
+           
 
     if os.path.isfile(path + "config.json") == False:
         dictionary = {
@@ -296,10 +298,10 @@ def startingProces():
             "hour_stop_LCD": 23,
             "time_update": str(datetime.datetime.now())
         } 
-        ConfigControl.insert_Config(path, data=dictionary)
+        ConfigControl.insert_Config(data=dictionary)
         
     data = [("color", 0), ("effects", 0)]
-    ConfigControl.edit_Config(path, data)  
+    ConfigControl.edit_Config(data)  
 
 
 if __name__ == '__main__':
