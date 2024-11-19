@@ -82,24 +82,29 @@ class thread:
         t_IRDa.start()
 
 class operation:
+    @Another.save_error_to_file("log_bledow.txt")
     def Table_Maker(file, columns, table_name):
         DataBaseControl.table_maker(DataBaseControl.connectBase(file), columns, table_name)
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
+    @Another.save_error_to_file("log_bledow.txt")
     def Temp_Calc():
         Temperature_Calculation.save()
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
+    @Another.save_error_to_file("log_bledow.txt")
     def Temp_Global():
         global temperature_list
         temperature_list = Temperature_Calculation.tempALL()
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
+    @Another.save_error_to_file("log_bledow.txt")
     def localization():
         data = operation.Weather_City()
         ConfigControl.edit_Config([("city", data[0]), ("IP_query", data[1])])
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
+    @Another.save_error_to_file("log_bledow.txt")
     def Weather_Calc():
         api_key = ConfigControl.collect_Config(name="api_key")
         base_url = ConfigControl.collect_Config(name="base_url")
@@ -110,10 +115,12 @@ class operation:
         ConfigControl.edit_Config(list_Weather)
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
+    @Another.save_error_to_file("log_bledow.txt")
     def Weather_City():
         localization_url = ConfigControl.collect_Config("localization_url")
         return WeatherControl.localization(str(localization_url))
 
+    @Another.save_error_to_file("log_bledow.txt")
     def get_ip():
         cmd = str(check_output("hostname -I | cut -d\' \' -f1", shell=True).decode("utf-8").strip())
         if len(cmd) > 5 and len(cmd) < 16:
@@ -124,8 +131,8 @@ class operation:
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
 class lcd_class:
-    @Another.save_error_to_file("log_bledow.txt")
 
+    @Another.save_error_to_file("log_bledow.txt")
     def time(wait):
         MyLCD.lcd_display_string_pos("Data: " + str(datetime.date.today()), 3, 2)
         for i in range(int(wait/0.2)):
@@ -133,6 +140,7 @@ class lcd_class:
             MyLCD.lcd_display_string_pos("Time: " + clock.strftime("%H:%M:%S"), 2, 2)
             time.sleep(0.2)
 
+    @Another.save_error_to_file("log_bledow.txt")
     def weather():
         city = ConfigControl.collect_Config("city")
         temp_outside = ConfigControl.collect_Config("temp_outside")
@@ -146,8 +154,9 @@ class lcd_class:
         for i in range (0, len(info_weather) - 20):
             lcd_text = info_weather[i:(i+20)]
             MyLCD.lcd_display_string(lcd_text, 2)
-            time.sleep(0.3)
+            time.sleep(0.4)
        
+    @Another.save_error_to_file("log_bledow.txt")
     def temperatura(wait):
         MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
         Room_temp = " Room = " + str(temperature_list[0]) + "\u00dfC "
@@ -160,43 +169,54 @@ class lcd_class:
             MyLCD.lcd_display_string_pos(str(RaspPI_temp), 4, 2)
             time.sleep(0.7)
 
+    @Another.save_error_to_file("log_bledow.txt")
     def pc_stats(wait):
-        description =  "CPU  " + "RAM " + "DISK "
+        description =  "CPU   RAM   DISK"
+        procent = f'0.0%   0.0%  0.0%'
         MyLCD.lcd_display_string_pos(description, 1, 3)
+        MyLCD.lcd_display_string_pos(procent, 2, 2)
+        
         ip_home = ConfigControl.collect_Config("IP_home")
         ip_query = ConfigControl.collect_Config("IP_query")
+        
         MyLCD.lcd_display_string_pos(ip_query, 3, int((20 - len(ip_query))/2) - 1)
         MyLCD.lcd_display_string_pos(ip_home, 4, int((20 - len(ip_home))/2) - 1)
-        for i in range(int(wait*4)):
-            mesh = str(str(psutil.cpu_percent(interval = 0.2)) + "% " + str(psutil.virtual_memory().percent) + "% " + str(psutil.disk_usage('/').percent) + "%")
-            MyLCD.lcd_display_string_pos(mesh, 2, 2)
-            time.sleep(.3)
+
+        MyLCD.lcd_display_string_pos(f'{psutil.virtual_memory().percent}%', 2, 8)
+        MyLCD.lcd_display_string_pos(f'{psutil.disk_usage("/").percent}%', 2, 15)
         
+        for i in range(int(wait*4)):
+            MyLCD.lcd_display_string_pos(f'{psutil.cpu_percent(interval = 0.2)}%', 2, 1)
+            time.sleep(.25)
 
 class control:
-    @Another.save_error_to_file("log_bledow.txt")
 
+    @Another.save_error_to_file("log_bledow.txt")
     def kill_process(name):
         for proc in psutil.process_iter():
             # check whether the process name matches
             if proc.name() == name:
                 proc.kill()
 
+    @Another.save_error_to_file("log_bledow.txt")
     def name_thread_start(name, pid):
         log = str(datetime.datetime.now()), 5*" ", str(name), (30-len(name))*" ", "started on pid: ", pid, "!"
         Another.save_logs_to_file(log)
         return print(log)
 
+    @Another.save_error_to_file("log_bledow.txt")
     def LEDs():
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
         while True:
             LEDs_Controler.main()
             time.sleep(0.4)
 
+    @Another.save_error_to_file("log_bledow.txt")
     def IRDa_Control():
         IR_Controler.main()
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
 
+    @Another.save_error_to_file("log_bledow.txt")
     def LCD_Control(time_stop_LCD, wait):
         control.name_thread_start((threading.current_thread().getName()), threading.get_native_id())
         i = 0
@@ -263,13 +283,15 @@ class control:
                     brightness = 0.5
                     data.append(("brightness", 0.5))
                 ConfigControl.edit_Config(data)  
-
-            if os.path.isfile(path+"error_log.txt") == True:
+            
+            if os.path.isfile(path + "error_log.txt") == True:
                 print("Crash")
                 MyLCD.lcd_clear()
+                MyLCD.backlight(0)
                 control.kill_process("Emsii_LCD")
 
             time.sleep(0.3)
+
 @Another.save_error_to_file("error_log.txt")
 def startingProces():
     MyLCD.backlight(0)
@@ -299,11 +321,10 @@ def startingProces():
             "effects": 0,
             "leds_speed": 1,
             "hour_start_LCD": 8,
-            "hour_stop_LCD": 23,
+            "hour_stop_LCD": 22,
             "time_update": str(datetime.datetime.now())
         } 
         ConfigControl.insert_Config(data=dictionary)
-        
     data = [("color", 0), ("effects", 0)]
     ConfigControl.edit_Config(data)  
 
