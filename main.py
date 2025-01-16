@@ -186,8 +186,8 @@ class lcd_class:
         MyLCD.lcd_display_string_pos(f'{psutil.disk_usage("/").percent}%', 2, 15)
         
         for i in range(int(wait*4)):
-            MyLCD.lcd_display_string_pos(f'{psutil.cpu_percent(interval = 0.2)}%', 2, 1)
-            time.sleep(.25)
+            MyLCD.lcd_display_string_pos(f'{psutil.cpu_percent(interval = 0.3)}%', 2, 1)
+            time.sleep(.4)
 
 class control:
 
@@ -247,35 +247,35 @@ class control:
 
         date = datetime.datetime(start_time.year, start_time.month, start_time.day)
 
-        time_start_LCD = date + datetime.timedelta(hours=ConfigControl.collect_Config("hour_start_LCD"))
-        time_stop_LCD = time_stop_LEDs = date + datetime.timedelta(hours=ConfigControl.collect_Config("hour_stop_LCD"))
+        hour_start_LCD = ConfigControl.collect_Config("hour_start_LCD")
+        hour_stop_LCD = ConfigControl.collect_Config("hour_stop_LCD")
+
+        time_start_LCD = date + datetime.timedelta(hours=hour_start_LCD)
+        time_stop_LCD = time_stop_LEDs = date + datetime.timedelta(hours=hour_stop_LCD)
 
         while True:
+            now = datetime.datetime.now()
+            current_time = int(now.strftime("%H"))
+
             date = datetime.datetime(start_time.year, start_time.month, start_time.day)
 
-            if datetime.datetime.now() >= time_start_get_localization:
+            if now >= time_start_get_localization:
                 thread.localization_thread()
                 time_start_get_localization += datetime.timedelta(minutes=60) 
                 
-            if datetime.datetime.now() >= time_start_LCD:
-                time_start_LCD = time_start_LCD + datetime.timedelta(days=1)
-                thread.LCD_Control_thread(time_stop_LCD, time_one_segment=3)
-                time_stop_LCD = time_stop_LCD + datetime.timedelta(days=1)
-
-            if datetime.datetime.now() >= time_start_WeatherCalc:
+            if now >= time_start_WeatherCalc    and current_time < hour_stop_LCD    and current_time >= hour_start_LCD: #process - off when LCD is off
                 thread.WeatherCalc_thread()
-                time_start_WeatherCalc += datetime.timedelta(minutes=10)
+                time_start_WeatherCalc += datetime.timedelta(minutes=5)
 
-            if datetime.datetime.now() >= time_start_get_ip:
+            if now >= time_start_get_ip:
                 thread.GetIP_thread()
                 time_start_get_ip += datetime.timedelta(minutes=5)
                 
-
-            if datetime.datetime.now() >= time_start_TempSaver:
+            if now >= time_start_TempSaver:
                 thread.Temp_Saver_thread()
                 time_start_TempSaver += datetime.timedelta(minutes=3)
                 
-            if datetime.datetime.now() >= time_stop_LEDs:
+            if now >= time_stop_LEDs:
                 time_stop_LEDs = time_stop_LEDs + datetime.timedelta(days=1)
                 data = [("color", 0), ("effects", 0)]
                 brightness = ConfigControl.collect_Config("brightness")
@@ -283,12 +283,18 @@ class control:
                     brightness = 0.5
                     data.append(("brightness", 0.5))
                 ConfigControl.edit_Config(data)  
+
+            if now >= time_start_LCD:
+                time_start_LCD = time_start_LCD + datetime.timedelta(days=1)
+                thread.LCD_Control_thread(time_stop_LCD, time_one_segment=3)
+                time_stop_LCD = time_stop_LCD + datetime.timedelta(days=1)
             
             if os.path.isfile(path + "error_log.txt") == True:
                 print("Crash")
                 MyLCD.lcd_clear()
                 MyLCD.backlight(0)
                 control.kill_process("Emsii_LCD")
+
 
             time.sleep(0.3)
 

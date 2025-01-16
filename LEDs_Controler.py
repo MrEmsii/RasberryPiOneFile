@@ -18,9 +18,9 @@ GPIO.setup(16, GPIO.OUT)
 GPIO.setup(12, GPIO.OUT)
 GPIO.setup(26, GPIO.OUT)
 
-led_red_PWM = GPIO.PWM(12, 50)
+led_red_PWM = GPIO.PWM(16, 50)
 led_green_PWM = GPIO.PWM(26, 50)
-led_blue_PWM = GPIO.PWM(16, 50)
+led_blue_PWM = GPIO.PWM(12, 50)
 
 led_red_PWM.start(0)
 led_green_PWM.start(0)
@@ -40,11 +40,9 @@ num_pixels = 15
 ORDER = neopixel.GRB
 
 try:
-    pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = float(ConfigControl.collect_Config("brightness")), auto_write=False, pixel_order=ORDER)
+    pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = ConfigControl.collect_Config("brightness"), auto_write=False, pixel_order=ORDER)
 except:
     pass
-
-@Another.save_error_to_file("error_log.txt")
 
 def leds_print(rgb, br):
     pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness = br, auto_write=False, pixel_order=ORDER)
@@ -72,18 +70,18 @@ def wheel(pos):
     return (r, g, b) if ORDER in (neopixel.RGB, neopixel.GRB) else (r, g, b, 0)
 
 def rainbow_cycle(wait):
-    bra = float(ConfigControl.collect_Config("brightness"))
+    brightness = ConfigControl.collect_Config("brightness")
     for j in range(255):
         for i in range(num_pixels):
             pixel_index = (i * 256 // num_pixels) + j
             pixels[i] = wheel(pixel_index & 255)
    
-        leds_print(pixels[i], bra)
+        leds_print(pixels[i], brightness)
 
         time.sleep(wait)
 
 def constant():
-        color_index = int(ConfigControl.collect_Config("color"))
+        color_index = ConfigControl.collect_Config("color")
         color_list = [ (0, 0, 0),
                        (255, 0, 0),   (0, 255, 0),   (0, 0, 255), 
                        (204, 51, 0), (10 ,255, 30) , (255, 0, 255), 
@@ -100,18 +98,24 @@ def stair(wait, color):
     for i in np.arange(0.8, 0, -wait/2):
         leds_print(color, i)
         time.sleep(wait)    
-    
-def main():
-    try:
-        effects = int(ConfigControl.collect_Config("effects"))
-    except TypeError:
-        print(effects)
-        effects = 0
-        print("Wtf")
 
-    speed = float(ConfigControl.collect_Config("leds_speed"))
+def led_string(color, i):
+    led_red_PWM.ChangeDutyCycle(color[0]/255*100*i)
+    led_green_PWM.ChangeDutyCycle(color[1]/255*100*i)
+    led_blue_PWM.ChangeDutyCycle(color[2]/255*100*i)
+
+def led_string_stop():
+    led_red_PWM.ChangeDutyCycle(0)
+    led_green_PWM.ChangeDutyCycle(0)
+    led_blue_PWM.ChangeDutyCycle(0)
+
+@Another.save_error_to_file("error_log.txt")
+def main():
+    effects = ConfigControl.collect_Config("effects")
+
+    speed = ConfigControl.collect_Config("leds_speed")
     if effects == 1:
-        leds_print(constant(), float(ConfigControl.collect_Config("brightness")))
+        leds_print(constant(), ConfigControl.collect_Config("brightness"))
     elif effects == 2:
         stair(0.004*speed, constant())
     elif effects == 3:
@@ -121,13 +125,3 @@ def main():
     else:
         leds_print([0,0,0], 0)
         time.sleep(1)
-
-def led_string(color, i):
-    led_red_PWM.ChangeDutyCycle(int(color[0]/255*100*i))
-    led_green_PWM.ChangeDutyCycle(int(color[1]/255*100*i))
-    led_blue_PWM.ChangeDutyCycle(int(color[2]/255*100*i))
-
-def led_string_stop():
-    led_red_PWM.ChangeDutyCycle(0)
-    led_green_PWM.ChangeDutyCycle(0)
-    led_blue_PWM.ChangeDutyCycle(0)
