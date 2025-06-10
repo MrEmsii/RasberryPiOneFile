@@ -81,6 +81,7 @@ def convertHex(binaryValue):
 def main():
 	max_effects = 4
 	while True:
+		time.sleep(.3)
 		inData = convertHex(getBinary()) #Runs subs to get incoming hex value
 		for button in range(len(Buttons)):#Runs through every value in list
 			if hex(Buttons[button]) == inData: #Checks this against incoming
@@ -103,7 +104,7 @@ def main():
 						if effects < max_effects and effects >= 1:
 							effects = effects + 1	
 
-					ConfigControl.edit_Config(path, [("effects", int(effects))])
+					ConfigControl.edit_Config([("effects", int(effects))])
 						
 				elif int(indexButton) >= 12 and int(indexButton) <= 13:
 					brightness = float(ConfigControl.collect_Config("brightness"))

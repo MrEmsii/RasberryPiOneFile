@@ -185,8 +185,8 @@ class lcd_class:
         MyLCD.lcd_display_string_pos(f'{psutil.virtual_memory().percent}%', 2, 8)
         MyLCD.lcd_display_string_pos(f'{psutil.disk_usage("/").percent}%', 2, 15)
         
-        for i in range(int(wait*4)):
-            MyLCD.lcd_display_string_pos(f'{psutil.cpu_percent(interval = 0.3)}%', 2, 1)
+        for i in range(int(wait*2)):
+            MyLCD.lcd_display_string_pos(f'{psutil.cpu_percent(interval = 0.3)}%', 2, 2)
             time.sleep(.4)
 
 class control:
@@ -263,7 +263,7 @@ class control:
                 thread.localization_thread()
                 time_start_get_localization += datetime.timedelta(minutes=60) 
                 
-            if now >= time_start_WeatherCalc    and current_time < hour_stop_LCD    and current_time >= hour_start_LCD: #process - off when LCD is off
+            if now >= time_start_WeatherCalc and current_time < hour_stop_LCD and current_time >= hour_start_LCD: #process - off when LCD is off
                 thread.WeatherCalc_thread()
                 time_start_WeatherCalc += datetime.timedelta(minutes=5)
 
@@ -315,7 +315,7 @@ def startingProces():
         dictionary = {
             "api_key": input("ENTER api_key from https://home.openweathermap.org/api_keys \n"),
             "base_url": "http://api.openweathermap.org/data/2.5/weather?",
-            "localization_url": "http://www.geoplugin.net/json.gp",
+            "localization_url": "http://www.geoplugin.net/json.gp?ip=xx.xx.xx.xx",
             "city": "",
             "temp_outside": "",
             "current_pressure": "",
