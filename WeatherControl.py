@@ -34,8 +34,8 @@ def localization(url):
     try:
         r = requests.get(url)
         data = json.loads(r.content.decode())
-        city = Another.remove_Accents(data['geoplugin_city'])
-        ip_query = data['geoplugin_request']
+        city = Another.remove_Accents(data['city'])
+        ip_query = data['ip']
         return city, ip_query
     except:
         return "NO INFO"

@@ -315,7 +315,7 @@ def startingProces():
         dictionary = {
             "api_key": input("ENTER api_key from https://home.openweathermap.org/api_keys \n"),
             "base_url": "http://api.openweathermap.org/data/2.5/weather?",
-            "localization_url": "http://www.geoplugin.net/json.gp?ip=xx.xx.xx.xx",
+            "localization_url": "http://ipinfo.io/json",
             "city": "",
             "temp_outside": "",
             "current_pressure": "",
