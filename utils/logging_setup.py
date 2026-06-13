@@ -29,6 +29,11 @@ def setup_logging(level: int = logging.INFO) -> None:
     log_dir = BASE_DIR / "logs"
     log_dir.mkdir(exist_ok=True)
 
+    formatter_error = logging.Formatter(
+        fmt="%(asctime)s  %(levelname)-8s  %(name)-30s  %(message)s \n",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     formatter = logging.Formatter(
         fmt="%(asctime)s  %(levelname)-8s  %(name)-30s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -52,7 +57,7 @@ def setup_logging(level: int = logging.INFO) -> None:
         encoding="utf-8",
     )
     error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(formatter)
+    error_handler.setFormatter(formatter_error)
 
     # ── Handler: konsola ──
     console_handler = logging.StreamHandler()
