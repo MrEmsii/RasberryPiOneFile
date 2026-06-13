@@ -155,7 +155,7 @@ class Scheduler:
     """
 
     def __init__(self):
-        self._lcd_on = False
+        self._lcd_on = True
         self._next_weather_check = datetime.datetime.now()
         self._next_ip_check = datetime.datetime.now()
         self._next_location_check = datetime.datetime.now()
