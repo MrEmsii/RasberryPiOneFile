@@ -146,7 +146,7 @@ class lcd_class:
         temp_outside = ConfigControl.collect_Config("temp_outside")
         current_p_h = ConfigControl.collect_Config("current_humidity") + " " + ConfigControl.collect_Config("current_pressure")
         info_weather = ConfigControl.collect_Config("info_weather")
-        MyLCD.lcd_display_string_pos(str(city), 1, int((20 - len(str(city)))/2))
+        MyLCD.lcd_display_string_pos(str(Another.remove_Accents(city)), 1, int((20 - len(str(city)))/2))
         MyLCD.lcd_display_string_pos(str(temp_outside), 3, int((20 - len(str(temp_outside)))/2))
         MyLCD.lcd_display_string_pos(str(current_p_h), 4, int((20 - len(str(current_p_h)))/2))
 
@@ -160,9 +160,13 @@ class lcd_class:
     def temperatura(wait):
         MyLCD.lcd_display_string_pos("Temperature:", 1, 4)
         Room_temp = " Room = " + str(temperature_list[0]) + "\u00dfC "
-        OutDoor_temp = " OutDoor = " + str(temperature_list[1]) + "\u00dfC "
         MyLCD.lcd_display_string_pos(str(Room_temp), 2, 4)
-        MyLCD.lcd_display_string_pos(str(OutDoor_temp), 3, 1)
+        try:
+            OutDoor_temp = " OutDoor = " + str(temperature_list[1]) + "\u00dfC "
+            MyLCD.lcd_display_string_pos(str(OutDoor_temp), 3, 1)
+        except IndexError:
+            OutDoor_temp = " OutDoor = --\u00dfC "
+            MyLCD.lcd_display_string_pos(str(OutDoor_temp), 3, 1)
 
         for i in range(int(wait)):
             RaspPI_temp = " RaspPI = " + str(CPUTemperature().temperature)[0:4] + "\u00dfC "
@@ -261,11 +265,11 @@ class control:
 
             if now >= time_start_get_localization:
                 thread.localization_thread()
-                time_start_get_localization += datetime.timedelta(minutes=60) 
+                time_start_get_localization += datetime.timedelta(minutes=5) 
                 
             if now >= time_start_WeatherCalc and current_time < hour_stop_LCD and current_time >= hour_start_LCD: #process - off when LCD is off
                 thread.WeatherCalc_thread()
-                time_start_WeatherCalc += datetime.timedelta(minutes=5)
+                time_start_WeatherCalc += datetime.timedelta(minutes=2)
 
             if now >= time_start_get_ip:
                 thread.GetIP_thread()
