@@ -23,7 +23,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS {table} (
     id         INTEGER PRIMARY KEY ASC,
     data       VARCHAR(250) NOT NULL,
-    godzina    VARCHAR(250) NOT NULL,
+    time    VARCHAR(250) NOT NULL,
     temp_dot   REAL NOT NULL,
     temp_comma VARCHAR(250) NOT NULL,
     jednostka  VARCHAR(250) NOT NULL
@@ -70,7 +70,7 @@ def insert_temperature(
         conn = _get_connection()
         try:
             conn.execute(
-                f"INSERT INTO {table} (data, godzina, temp_dot, temp_comma, jednostka) "
+                f"INSERT INTO {table} (data, time, temp_dot, temp_comma, jednostka) "
                 f"VALUES (?, ?, ?, ?, ?)",
                 (date, time, value, comma_value, unit),
             )
