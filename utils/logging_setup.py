@@ -30,7 +30,7 @@ def setup_logging(level: int = logging.INFO) -> None:
     log_dir.mkdir(exist_ok=True)
 
     formatter_error = logging.Formatter(
-        fmt="%(asctime)s  %(levelname)-8s  %(name)-30s  %(message)s \n",
+        fmt="\n\n %(asctime)s  %(levelname)-8s  %(name)-30s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
