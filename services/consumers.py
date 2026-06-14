@@ -152,13 +152,49 @@ class Scheduler:
     Nie używa wątków do każdej operacji — emituje zdarzenia.
 
     LCD ON/OFF jest teraz zdarzeniem, a nie bezpośrednim wywołaniem wątku.
+
+    WAŻNE: Przy starcie procesu, Scheduler natychmiast inicjalizuje stan LCD
+    zgodnie z aktualną godziną — unikając sytuacji gdy LCD dostaje zasilanie
+    ale pozostaje ciemne bo nigdy nie otrzyma LCD_OFF event.
     """
 
     def __init__(self):
-        self._lcd_on = True
+        self._lcd_on = False
         self._next_weather_check = datetime.datetime.now()
         self._next_ip_check = datetime.datetime.now()
         self._next_location_check = datetime.datetime.now()
+
+        # Inicjalizuj LCD state przy starcie — bardzo ważne!
+        self._initialize_lcd_state()
+
+    def _initialize_lcd_state(self) -> None:
+        """
+        Przy starcie procesu, sprawdź czy LCD powinien być włączony czy wyłączony.
+        Emituj odpowiednie zdarzenie od razu.
+
+        To rozwiązuje problem: jeśli resetujesz proces po godzinie wyłączenia LCD,
+        LCD dostaje zasilanie w konstruktorze LCDController, ale nigdy nie dostaje
+        LCD_OFF event bo Scheduler myśli że LCD jest już wyłączony.
+        """
+        now = datetime.datetime.now()
+        hour = now.hour
+        hour_start = state.hour_start_lcd
+        hour_stop = state.hour_stop_lcd
+
+        should_be_on = hour_start <= hour < hour_stop
+
+        if should_be_on:
+            # Emituj LCD_ON od razu
+            stop_at = now.replace(hour=hour_stop, minute=0, second=0, microsecond=0)
+            bus.emit(Event(EventType.LCD_ON, {"stop_at": stop_at}))
+            self._lcd_on = True
+            logger.info(f"LCD initialized as ON (until {stop_at.strftime('%H:%M')})")
+        else:
+            # Emituj LCD_OFF od razu
+            bus.emit(Event(EventType.LCD_OFF))
+            bus.emit(Event(EventType.LEDS_OFF))
+            self._lcd_on = False
+            logger.info(f"LCD initialized as OFF (will turn on at {hour_start:02d}:00)")
 
     def tick(self, now: datetime.datetime) -> None:
         """Wywoływać co 1s z głównej pętli."""
@@ -166,17 +202,15 @@ class Scheduler:
         hour_start = state.hour_start_lcd
         hour_stop = state.hour_stop_lcd
 
-        # LCD
+        # LCD — przejścia ON/OFF na granicy godzin
         should_be_on = hour_start <= hour < hour_stop
         if should_be_on and not self._lcd_on:
             stop_at = now.replace(hour=hour_stop, minute=0, second=0, microsecond=0)
             bus.emit(Event(EventType.LCD_ON, {"stop_at": stop_at}))
             self._lcd_on = True
+            logger.debug(f"LCD turned ON")
         elif not should_be_on and self._lcd_on:
             bus.emit(Event(EventType.LCD_OFF))
             bus.emit(Event(EventType.LEDS_OFF))
             self._lcd_on = False
-
-        # Wymuszenie następnego dnia
-        if hour < hour_start and not self._lcd_on:
-            self._lcd_on = False
+            logger.debug(f"LCD turned OFF")

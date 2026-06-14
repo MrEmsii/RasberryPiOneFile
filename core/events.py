@@ -29,6 +29,7 @@ class EventType(Enum):
     TEMP_INDOOR_UPDATED   = auto()   # payload: {"value": float}
     TEMP_OUTDOOR_UPDATED  = auto()   # payload: {"value": float}
     TEMP_ALL_UPDATED      = auto()   # payload: {"indoor": float, "outdoor": float | None}
+    CPU_TEMP_UPDATED      = auto()   # payload: {"temp": float}
 
     # Pogoda
     WEATHER_UPDATED       = auto()   # payload: dict z danymi pogodowymi
