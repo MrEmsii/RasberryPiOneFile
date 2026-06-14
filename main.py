@@ -43,6 +43,7 @@ from services.consumers import (
 # Hardware — import opóźniony żeby błędy sprzętowe nie blokowały startu
 from hardware.led_controller import LEDController
 from hardware.lcd_controller import LCDController
+from hardware.fan_controller import CPUTemperatureProducer, FanDriver
 import hardware.ir_controller as ir_controller
 
 logger = logging.getLogger(__name__)
@@ -85,25 +86,37 @@ def start_event_bus() -> None:
     logger.info("EventBus running")
 
 
-def register_consumers() -> tuple:
+def register_consumers() -> "Scheduler":
     """
     Zarejestruj wszystkich konsumentów.
-    Kolejność ma znaczenie — StateUpdater MUSI być pierwszy
-    żeby stan był aktualny zanim ConfigPersister go zapisze.
-    """
-    state_updater    = StateUpdater()
-    config_persister = ConfigPersister()
-    db_writer        = DatabaseWriter()
-    scheduler        = Scheduler()
 
-    logger.info("Consumers registered")
-    return state_updater, config_persister, db_writer, scheduler
+    WAŻNE: Kolejność ma znaczenie!
+    1. StateUpdater — musi być PIERWSZY, aktualizuje AppState
+    2. ConfigPersister — zapisuje config.json
+    3. DatabaseWriter — zapisuje do Heat.db
+    4. Scheduler — OSTATNI, emituje zdarzenia LCD_ON/LCD_OFF w __init__
+
+    Scheduler jest tworzony ostatni, dlatego wszystkie inne consumers
+    (a przede wszystkim LCDController w hardware) są już gotowe do obsługi
+    emitowanych zdarzeń.
+    """
+    state_updater = StateUpdater()
+    config_persister = ConfigPersister()
+    db_writer = DatabaseWriter()
+
+    logger.info("Consumers registered (StateUpdater, ConfigPersister, DatabaseWriter)")
+
+    # Scheduler — tworzony OSTATNI, emituje LCD_ON/LCD_OFF w __init__
+    scheduler = Scheduler()
+    logger.info("Scheduler created — LCD state initialized based on current hour")
+
+    return scheduler
 
 
 def start_producers() -> list:
     """Uruchom wszystkich producentów danych."""
     producers = [
-        TemperatureProducer(interval=180),    # co 3 minuty
+        TemperatureProducer(interval=180),   # co 3 minuty
         WeatherProducer(interval=120),        # co 2 minuty
         LocationProducer(interval=300),       # co 5 minut
         LocalIPProducer(interval=300),        # co 5 minut
@@ -129,6 +142,12 @@ def start_hardware() -> tuple:
     )
     led_thread.start()
 
+    # Fan — CPU temperature monitoring + PWM control
+    cpu_temp_producer = CPUTemperatureProducer(interval=5)
+    cpu_temp_producer.start()
+
+    fan_driver = FanDriver()
+
     # IR — producer, własna pętla odczytu
     ir_thread = threading.Thread(
         target=ir_controller.run,
@@ -138,7 +157,7 @@ def start_hardware() -> tuple:
     ir_thread.start()
 
     logger.info("Hardware threads started")
-    return lcd, led
+    return lcd, led, fan_driver, cpu_temp_producer
 
 
 # ─── Główna pętla ────────────────────────────────────────
@@ -159,7 +178,7 @@ def main_loop(scheduler: Scheduler) -> None:
 
 # ─── Shutdown ────────────────────────────────────────────
 
-def shutdown(producers: list, led: LEDController) -> None:
+def shutdown(producers: list, led: LEDController, fan_driver: FanDriver, cpu_temp_producer: "CPUTemperatureProducer") -> None:
     logger.info("Shutdown sequence started")
 
     # Zatrzymaj producentów
@@ -167,8 +186,13 @@ def shutdown(producers: list, led: LEDController) -> None:
         p.stop()
         p.join(timeout=3)
 
+    # Zatrzymaj CPU temp producenta
+    cpu_temp_producer.stop()
+    cpu_temp_producer.join(timeout=3)
+
     # Wyczyść sprzęt
     led.cleanup()
+    fan_driver.cleanup()
 
     # Zapisz stan końcowy
     cfg_manager.save(state.to_dict())
@@ -187,11 +211,17 @@ if __name__ == "__main__":
     initialize()
     start_event_bus()
 
-    _, _, _, scheduler = register_consumers()
+    # WAŻNE: Hardware musi się zarejestrować (subskrybować zdarzenia)
+    # PRZED tym jak Scheduler będzie emitować zdarzenia LCD_ON/LCD_OFF
+    lcd, led, fan_driver, cpu_temp_producer = start_hardware()
+
+    # Teraz rejestrujemy State/Config/DB consumers
+    # Scheduler jest tworzony OSTATNI i emituje LCD_ON/LCD_OFF
+    scheduler = register_consumers()
+
     producers = start_producers()
-    lcd, led = start_hardware()
 
     try:
         main_loop(scheduler)
     finally:
-        shutdown(producers, led)
+        shutdown(producers, led, fan_driver, cpu_temp_producer)
