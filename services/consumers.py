@@ -6,6 +6,8 @@
 import logging
 import datetime
 
+from typing import Optional
+
 from core.events import bus, Event, EventType
 from core.state import state
 from core import config as cfg_manager
@@ -141,6 +143,57 @@ class DatabaseWriter:
                 )
         except Exception:
             logger.exception("DatabaseWriter: insert failed")
+
+
+# ─── RPiDataWriter — zapisuje CPU temp + fan speed ──────────────
+
+class RPiDataWriter:
+    """
+    Subskrybuje CPU_TEMP_UPDATED i FAN_SPEED_CHANGED,
+    zapisuje CPU temperaturę i prędkość wentylatora do bazy.
+    
+    Przechowuje ostatnią prędkość wentylatora, aby zapisywać ją
+    razem z temperaturą CPU (mogą przyjść w różnych momentach).
+    """
+
+    def __init__(self):
+        self._last_fan_speed = 0
+        self._last_cpu_temp: Optional[float] = None
+        self._register()
+
+    def _register(self) -> None:
+        bus.subscribe(EventType.CPU_TEMP_UPDATED, self._on_cpu_temp)
+        bus.subscribe(EventType.FAN_SPEED_CHANGED, self._on_fan_speed)
+        logger.info("RPiDataWriter registered (CPU temp + fan speed logging)")
+
+    def _on_cpu_temp(self, event: Event) -> None:
+        """Zapisz CPU temp razem z ostatnią znaną prędkością wentylatora."""
+        from services import db_service
+        temp = event.payload.get("temp")
+        if temp is None:
+            return
+
+        self._last_cpu_temp = temp
+        now_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        now_time = datetime.datetime.now().strftime("%H:%M:%S")
+
+        try:
+            db_service.insert_temperature_rp(
+                table="temperatura_rp",
+                date=now_date,
+                time=now_time,
+                value=temp,
+                wentylator=self._last_fan_speed,
+            )
+            logger.debug(f"RPi data saved: {temp}°C, fan {self._last_fan_speed}%")
+        except Exception:
+            logger.exception("RPiDataWriter: insert failed")
+
+    def _on_fan_speed(self, event: Event) -> None:
+        """Zaktualizuj ostatnią prędkość wentylatora."""
+        speed = event.payload.get("speed", 0)
+        self._last_fan_speed = speed
+        logger.debug(f"Fan speed updated: {speed}%")
 
 
 # ─── Scheduler — obsługuje zdarzenia czasowe ─────────────

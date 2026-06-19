@@ -37,6 +37,7 @@ from services.consumers import (
     StateUpdater,
     ConfigPersister,
     DatabaseWriter,
+    RPiDataWriter,
     Scheduler,
 )
 
@@ -93,8 +94,9 @@ def register_consumers() -> "Scheduler":
     WAŻNE: Kolejność ma znaczenie!
     1. StateUpdater — musi być PIERWSZY, aktualizuje AppState
     2. ConfigPersister — zapisuje config.json
-    3. DatabaseWriter — zapisuje do Heat.db
-    4. Scheduler — OSTATNI, emituje zdarzenia LCD_ON/LCD_OFF w __init__
+    3. DatabaseWriter — zapisuje temperatury czujników do Heat.db
+    4. RPiDataWriter — zapisuje CPU temp + fan speed do Heat.db
+    5. Scheduler — OSTATNI, emituje zdarzenia LCD_ON/LCD_OFF w __init__
 
     Scheduler jest tworzony ostatni, dlatego wszystkie inne consumers
     (a przede wszystkim LCDController w hardware) są już gotowe do obsługi
@@ -103,8 +105,9 @@ def register_consumers() -> "Scheduler":
     state_updater = StateUpdater()
     config_persister = ConfigPersister()
     db_writer = DatabaseWriter()
+    rpi_data_writer = RPiDataWriter()
 
-    logger.info("Consumers registered (StateUpdater, ConfigPersister, DatabaseWriter)")
+    logger.info("Consumers registered (StateUpdater, ConfigPersister, DatabaseWriter, RPiDataWriter)")
 
     # Scheduler — tworzony OSTATNI, emituje LCD_ON/LCD_OFF w __init__
     scheduler = Scheduler()
