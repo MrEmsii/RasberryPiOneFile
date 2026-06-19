@@ -30,6 +30,18 @@ CREATE TABLE IF NOT EXISTS {table} (
 )
 """
 
+ALLOWED_TABLES_RP = {"temperatura_rp"}
+
+SCHEMA_RP = """
+CREATE TABLE IF NOT EXISTS {table} (
+    id         INTEGER PRIMARY KEY ASC,
+    data       VARCHAR(250) NOT NULL,
+    time    VARCHAR(250) NOT NULL,
+    temp_dot   REAL NOT NULL,
+    wentylator   INTEGER NOT NULL
+)
+"""
+
 
 def _get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(str(DB_FILE))
@@ -44,12 +56,43 @@ def ensure_tables() -> None:
         try:
             for table in ALLOWED_TABLES:
                 conn.execute(SCHEMA.format(table=table))
+            for table in ALLOWED_TABLES_RP:
+                conn.execute(SCHEMA_RP.format(table=table))    
             conn.commit()
             logger.info("DB tables ready")
         finally:
             conn.close()
 
+def insert_temperature_rp(
+    table: str,
+    date: str,
+    time: str,
+    value: float,
+    wentylator: int
+) -> None:
+    """
+    Wstaw odczyt temperatury i stanu wentylatora.
+    Nazwy tabel przez whitelist — nie przez f-string z user input.
+    """
+    if table not in ALLOWED_TABLES_RP:
+        raise ValueError(f"Unknown table: {table!r}. Allowed: {ALLOWED_TABLES_RP}")
 
+    with _lock:
+        conn = _get_connection()
+        try:
+            conn.execute(
+                f"INSERT INTO {table} (data, time, temp_dot, wentylator) "
+                f"VALUES (?, ?, ?, ?)",
+                (date, time, value, wentylator),
+            )
+            conn.commit()
+            logger.debug(f"DB insert RP: {table} {value}°C, wentylator={wentylator} @ {date} {time}")
+        except sqlite3.Error:
+            logger.exception(f"DB insert failed for table {table}")
+        finally:
+            conn.close()
+
+            
 def insert_temperature(
     table: str,
     date: str,

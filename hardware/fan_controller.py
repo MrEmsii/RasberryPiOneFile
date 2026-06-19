@@ -180,12 +180,14 @@ class FanDriver:
         return current_state
 
     def _set_fan_speed(self, speed: int) -> None:
-        """Ustaw PWM dla wentylatora."""
+        """Ustaw PWM dla wentylatora i emituj zdarzenie."""
         if not HW_AVAILABLE or not self._pwm:
             return
 
         try:
             self._pwm.ChangeDutyCycle(speed)
+            # Emituj zdarzenie o zmianie prędkości
+            bus.emit(Event(EventType.FAN_SPEED_CHANGED, {"speed": speed}))
         except Exception:
             logger.exception(f"Failed to set fan speed to {speed}%")
 
