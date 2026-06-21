@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS {table} (
 )
 """
 
-ALLOWED_TABLES_RP = {"temperatura_rp"}
+ALLOWED_TABLES_RP = {"Temperatura_RP"}
 
 SCHEMA_RP = """
 CREATE TABLE IF NOT EXISTS {table} (
@@ -38,7 +38,9 @@ CREATE TABLE IF NOT EXISTS {table} (
     data       VARCHAR(250) NOT NULL,
     time    VARCHAR(250) NOT NULL,
     temp_dot   REAL NOT NULL,
-    wentylator   INTEGER NOT NULL
+    wentylator   INTEGER NOT NULL,
+    CPU   INTEGER NOT NULL,
+    RAM   INTEGER NOT NULL
 )
 """
 
@@ -68,7 +70,9 @@ def insert_temperature_rp(
     date: str,
     time: str,
     value: float,
-    wentylator: int
+    wentylator: int,
+    CPU: int,
+    RAM: int
 ) -> None:
     """
     Wstaw odczyt temperatury i stanu wentylatora.
@@ -81,12 +85,12 @@ def insert_temperature_rp(
         conn = _get_connection()
         try:
             conn.execute(
-                f"INSERT INTO {table} (data, time, temp_dot, wentylator) "
-                f"VALUES (?, ?, ?, ?)",
-                (date, time, value, wentylator),
+                f"INSERT INTO {table} (data, time, temp_dot, wentylator, CPU, RAM) "
+                f"VALUES (?, ?, ?, ?, ?, ?)",
+                (date, time, value, wentylator, CPU, RAM),  
             )
             conn.commit()
-            logger.debug(f"DB insert RP: {table} {value}°C, wentylator={wentylator} @ {date} {time}")
+            logger.debug(f"DB insert RP: {table} {value}°C, wentylator={wentylator}, CPU={CPU}, RAM={RAM} @ {date} {time}")
         except sqlite3.Error:
             logger.exception(f"DB insert failed for table {table}")
         finally:

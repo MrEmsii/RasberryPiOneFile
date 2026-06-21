@@ -7,6 +7,7 @@
 
 import logging
 import threading
+import psutil
 from typing import Optional
 
 try:
@@ -64,8 +65,14 @@ class CPUTemperatureProducer(threading.Thread):
         while not self._stop_event.is_set():
             try:
                 temp = self._read_cpu_temp()
+                cpu_percent = int(psutil.cpu_percent(interval=None))
+                ram_percent = int(psutil.virtual_memory().percent)
                 if temp is not None:
                     bus.emit(Event(EventType.CPU_TEMP_UPDATED, {"temp": temp}))
+                    bus.emit(Event(EventType.CPU_PROCENT_UPDATED, {
+                        "procent": cpu_percent/100,
+                        "ram": ram_percent/100
+                    }))
                     logger.debug(f"CPU temp: {temp:.1f}°C")
             except Exception:
                 logger.exception("CPU temperature read failed")

@@ -159,12 +159,21 @@ class RPiDataWriter:
     def __init__(self):
         self._last_fan_speed = 0
         self._last_cpu_temp: Optional[float] = None
+        self._last_cpu_procent: int = 0   # ← był None, zmieniamy na 0
+        self._last_ram_procent: int = 0   # ← nowe
         self._register()
 
     def _register(self) -> None:
         bus.subscribe(EventType.CPU_TEMP_UPDATED, self._on_cpu_temp)
         bus.subscribe(EventType.FAN_SPEED_CHANGED, self._on_fan_speed)
+        bus.subscribe(EventType.CPU_PROCENT_UPDATED, self._on_cpu_procent)
         logger.info("RPiDataWriter registered (CPU temp + fan speed logging)")
+
+    def _on_cpu_procent(self, event: Event) -> None:
+        self._last_cpu_procent = event.payload.get("procent", 0)
+        self._last_ram_procent = event.payload.get("ram", 0)
+        logger.debug(f"CPU={self._last_cpu_procent}%, RAM={self._last_ram_procent}%")
+
 
     def _on_cpu_temp(self, event: Event) -> None:
         """Zapisz CPU temp razem z ostatnią znaną prędkością wentylatora."""
@@ -184,8 +193,10 @@ class RPiDataWriter:
                 time=now_time,
                 value=temp,
                 wentylator=self._last_fan_speed,
+                CPU=self._last_cpu_procent,
+                RAM=self._last_ram_procent,
             )
-            logger.debug(f"RPi data saved: {temp}°C, fan {self._last_fan_speed}%")
+            logger.debug(f"RPi data saved: {temp}°C, fan {self._last_fan_speed}%, CPU {self._last_cpu_procent}% @ {now_date} {now_time}")
         except Exception:
             logger.exception("RPiDataWriter: insert failed")
 
@@ -195,6 +206,13 @@ class RPiDataWriter:
         self._last_fan_speed = speed
         logger.debug(f"Fan speed updated: {speed}%")
 
+    def _on_cpu_procent(self, event: Event) -> None:
+        """Zaktualizuj ostatnią procentową wartość CPU."""
+        procent = event.payload.get("procent", 0)
+        ram = event.payload.get("ram", 0)
+        self._last_cpu_procent = procent
+        self._last_ram_procent = ram
+        logger.debug(f"CPU procent updated: {procent}%, RAM: {ram}%")
 
 # ─── Scheduler — obsługuje zdarzenia czasowe ─────────────
 
