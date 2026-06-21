@@ -188,7 +188,7 @@ class RPiDataWriter:
 
         try:
             db_service.insert_temperature_rp(
-                table="temperatura_rp",
+                table="Temperatura_RP",
                 date=now_date,
                 time=now_time,
                 value=temp,
