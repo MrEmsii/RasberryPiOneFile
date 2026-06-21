@@ -79,9 +79,6 @@ class ConfigPersister:
     """
     Subskrybuje zdarzenia i persystuje zmieniony stan do config.json.
     To JEDYNE miejsce które pisze do pliku w runtime.
-
-    Zapis odbywa się po każdej istotnej zmianie — w praktyce
-    wystarczyłoby debounce'ować (np. co 30s), ale dla prostoty zapis jest natychmiastowy.
     """
 
     def __init__(self):
@@ -97,10 +94,7 @@ class ConfigPersister:
         bus.subscribe(EventType.LEDS_OFF,              self._save)
 
     def _save(self, event: Event) -> None:
-        """Zapisz aktualny stan do config.json po każdym zdarzeniu."""
         try:
-            # StateUpdater już zaktualizował state przed nami (kolejność subskrypcji)
-            # więc state.to_dict() zawiera świeże dane
             cfg_manager.save(state.to_dict())
         except Exception:
             logger.exception(f"ConfigPersister: failed to save after {event.type.name}")
@@ -145,38 +139,33 @@ class DatabaseWriter:
             logger.exception("DatabaseWriter: insert failed")
 
 
-# ─── RPiDataWriter — zapisuje CPU temp + fan speed ──────────────
+# ─── RPiDataWriter — zapisuje CPU temp + fan speed + CPU% + RAM% ─────
 
 class RPiDataWriter:
     """
-    Subskrybuje CPU_TEMP_UPDATED i FAN_SPEED_CHANGED,
-    zapisuje CPU temperaturę i prędkość wentylatora do bazy.
-    
-    Przechowuje ostatnią prędkość wentylatora, aby zapisywać ją
-    razem z temperaturą CPU (mogą przyjść w różnych momentach).
+    Subskrybuje CPU_TEMP_UPDATED, FAN_SPEED_CHANGED i CPU_PROCENT_UPDATED,
+    zapisuje CPU temperaturę, prędkość wentylatora, obciążenie CPU i RAM do bazy.
+
+    CPU_PROCENT_UPDATED przyychodzi razem z CPU_TEMP_UPDATED (ten sam tick producenta),
+    ale może przyjść chwilę później przez kolejkę EventBus — dlatego przechowujemy
+    ostatnie znane wartości i zapisujemy je razem z temperaturą.
     """
 
     def __init__(self):
-        self._last_fan_speed = 0
+        self._last_fan_speed: int = 0
         self._last_cpu_temp: Optional[float] = None
-        self._last_cpu_procent: int = 0   # ← był None, zmieniamy na 0
-        self._last_ram_procent: int = 0   # ← nowe
+        self._last_cpu_procent: int = 0
+        self._last_ram_procent: int = 0
         self._register()
 
     def _register(self) -> None:
-        bus.subscribe(EventType.CPU_TEMP_UPDATED, self._on_cpu_temp)
-        bus.subscribe(EventType.FAN_SPEED_CHANGED, self._on_fan_speed)
+        bus.subscribe(EventType.CPU_TEMP_UPDATED,    self._on_cpu_temp)
+        bus.subscribe(EventType.FAN_SPEED_CHANGED,   self._on_fan_speed)
         bus.subscribe(EventType.CPU_PROCENT_UPDATED, self._on_cpu_procent)
-        logger.info("RPiDataWriter registered (CPU temp + fan speed logging)")
-
-    def _on_cpu_procent(self, event: Event) -> None:
-        self._last_cpu_procent = event.payload.get("procent", 0)
-        self._last_ram_procent = event.payload.get("ram", 0)
-        logger.debug(f"CPU={self._last_cpu_procent}%, RAM={self._last_ram_procent}%")
-
+        logger.info("RPiDataWriter registered (CPU temp + fan + CPU% + RAM%)")
 
     def _on_cpu_temp(self, event: Event) -> None:
-        """Zapisz CPU temp razem z ostatnią znaną prędkością wentylatora."""
+        """Zapisz wiersz do DB z ostatnimi znanymi wartościami fan/CPU%/RAM%."""
         from services import db_service
         temp = event.payload.get("temp")
         if temp is None:
@@ -196,23 +185,25 @@ class RPiDataWriter:
                 CPU=self._last_cpu_procent,
                 RAM=self._last_ram_procent,
             )
-            logger.debug(f"RPi data saved: {temp}°C, fan {self._last_fan_speed}%, CPU {self._last_cpu_procent}% @ {now_date} {now_time}")
+            logger.debug(
+                f"RPi data saved: {temp}°C, fan={self._last_fan_speed}%, "
+                f"CPU={self._last_cpu_procent}%, RAM={self._last_ram_procent}% "
+                f"@ {now_date} {now_time}"
+            )
         except Exception:
             logger.exception("RPiDataWriter: insert failed")
 
     def _on_fan_speed(self, event: Event) -> None:
         """Zaktualizuj ostatnią prędkość wentylatora."""
-        speed = event.payload.get("speed", 0)
-        self._last_fan_speed = speed
-        logger.debug(f"Fan speed updated: {speed}%")
+        self._last_fan_speed = event.payload.get("speed", 0)
+        logger.debug(f"Fan speed updated: {self._last_fan_speed}%")
 
     def _on_cpu_procent(self, event: Event) -> None:
-        """Zaktualizuj ostatnią procentową wartość CPU."""
-        procent = event.payload.get("procent", 0)
-        ram = event.payload.get("ram", 0)
-        self._last_cpu_procent = procent
-        self._last_ram_procent = ram
-        logger.debug(f"CPU procent updated: {procent}%, RAM: {ram}%")
+        """Zaktualizuj ostatnie obciążenie CPU i RAM."""
+        self._last_cpu_procent = event.payload.get("procent", 0)
+        self._last_ram_procent = event.payload.get("ram", 0)
+        logger.debug(f"CPU={self._last_cpu_procent}%, RAM={self._last_ram_procent}%")
+
 
 # ─── Scheduler — obsługuje zdarzenia czasowe ─────────────
 
@@ -221,8 +212,6 @@ class Scheduler:
     Zastępuje chaos z thread_Control.
     Tick co 1s — sprawdza co należy włączyć/wyłączyć.
     Nie używa wątków do każdej operacji — emituje zdarzenia.
-
-    LCD ON/OFF jest teraz zdarzeniem, a nie bezpośrednim wywołaniem wątku.
 
     WAŻNE: Przy starcie procesu, Scheduler natychmiast inicjalizuje stan LCD
     zgodnie z aktualną godziną — unikając sytuacji gdy LCD dostaje zasilanie
@@ -235,18 +224,9 @@ class Scheduler:
         self._next_ip_check = datetime.datetime.now()
         self._next_location_check = datetime.datetime.now()
 
-        # Inicjalizuj LCD state przy starcie — bardzo ważne!
         self._initialize_lcd_state()
 
     def _initialize_lcd_state(self) -> None:
-        """
-        Przy starcie procesu, sprawdź czy LCD powinien być włączony czy wyłączony.
-        Emituj odpowiednie zdarzenie od razu.
-
-        To rozwiązuje problem: jeśli resetujesz proces po godzinie wyłączenia LCD,
-        LCD dostaje zasilanie w konstruktorze LCDController, ale nigdy nie dostaje
-        LCD_OFF event bo Scheduler myśli że LCD jest już wyłączony.
-        """
         now = datetime.datetime.now()
         hour = now.hour
         hour_start = state.hour_start_lcd
@@ -255,13 +235,11 @@ class Scheduler:
         should_be_on = hour_start <= hour < hour_stop
 
         if should_be_on:
-            # Emituj LCD_ON od razu
             stop_at = now.replace(hour=hour_stop, minute=0, second=0, microsecond=0)
             bus.emit(Event(EventType.LCD_ON, {"stop_at": stop_at}))
             self._lcd_on = True
             logger.info(f"LCD initialized as ON (until {stop_at.strftime('%H:%M')})")
         else:
-            # Emituj LCD_OFF od razu
             bus.emit(Event(EventType.LCD_OFF))
             bus.emit(Event(EventType.LEDS_OFF))
             self._lcd_on = False
@@ -273,15 +251,14 @@ class Scheduler:
         hour_start = state.hour_start_lcd
         hour_stop = state.hour_stop_lcd
 
-        # LCD — przejścia ON/OFF na granicy godzin
         should_be_on = hour_start <= hour < hour_stop
         if should_be_on and not self._lcd_on:
             stop_at = now.replace(hour=hour_stop, minute=0, second=0, microsecond=0)
             bus.emit(Event(EventType.LCD_ON, {"stop_at": stop_at}))
             self._lcd_on = True
-            logger.debug(f"LCD turned ON")
+            logger.debug("LCD turned ON")
         elif not should_be_on and self._lcd_on:
             bus.emit(Event(EventType.LCD_OFF))
             bus.emit(Event(EventType.LEDS_OFF))
             self._lcd_on = False
-            logger.debug(f"LCD turned OFF")
+            logger.debug("LCD turned OFF")

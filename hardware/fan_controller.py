@@ -23,28 +23,40 @@ logger = logging.getLogger(__name__)
 
 # ─── Konfiguracja sprzętu ────────────────────────────────
 
-PWM_PIN = 21      # GPIO21 -> PWM wentylator
+PWM_PIN   = 12    # GPIO12 (pin 32) -> PWM wentylator
 POWER_PIN = 16    # GPIO16 -> zasilanie (opcjonalnie)
-PWM_FREQ = 25000  # 25kHz
+PWM_FREQ  = 100   # 100 Hz — hardware PWM GPIO12
 
-# ─── Hystereza temperatury ───────────────────────────────
+# ─── Kroki PWM co 10% z histerezą ───────────────────────
+#
+# Każdy próg to para (temp_up, temp_down, pwm_percent):
+#   temp_up   — temperatura przy której przechodzimy NA ten poziom (z niższego)
+#   temp_down — temperatura przy której schodzimy Z tego poziomu (do niższego)
+#   pwm       — wypełnienie PWM [%]
+#
+# Histereza = temp_up - temp_down = 2°C na każdym progu.
+# Zakresy: 0% < 47°C | 10% 47-49 | 20% 49-51 | 30% 51-53 | 40% 53-55
+#          50% 55-57 | 60% 57-59 | 70% 59-61 | 80% 61-63 | 90% 63-65 | 100% >65°C
 
-FAN_OFF_TEMP = 48    # Temperatura poniżej której wentylator wyłącza się
-FAN_LOW_TEMP = 52    # Temperatura powyżej której włącza się na niskich obrotach
-HYSTERESIS = 2       # Margines — unikanie oscylacji
+FAN_LEVELS = [
+    # (temp_up, temp_down, pwm)
+    (47,  46.9999,   0),   # OFF
+    (49,  47,  10),
+    (51,  49,  20),
+    (53,  51,  30),
+    (55,  53,  40),
+    (57,  55,  50),
+    (59,  57,  60),
+    (61,  59,  70),
+    (63,  61,  80),
+    (65,  63,  90),
+    (999, 64, 100),   # MAX — temp_up=999 żeby nigdy nie przejść wyżej
+]
 
-# Stan wentylatora: 0% OFF, 50% LOW, 100% HIGH
-FAN_STATE_OFF = 0
-FAN_STATE_LOW = 50
-FAN_STATE_HIGH = 100
-
-
-# ─── EventType dla wentylatora ───────────────────────────
-
-class FanEventType:
-    """Dodatkowe typy zdarzeń specyficzne dla wentylatora."""
-    CPU_TEMP_UPDATED = "cpu_temp_updated"      # payload: {"temp": float}
-    FAN_SPEED_CHANGED = "fan_speed_changed"    # payload: {"speed": int (0/50/100)}
+# Singleton PWM na poziomie modułu — przeżywa restart instancji FanDriver.
+# GPIO.cleanup() nie niszczy obiektu PWM w RPi.GPIO, więc trzymamy go tutaj
+# i reużywamy zamiast tworzyć nowy (co rzuca RuntimeError).
+_pwm_singleton: Optional[object] = None
 
 
 # ─── CPU Temperature Producer ────────────────────────────
@@ -70,10 +82,10 @@ class CPUTemperatureProducer(threading.Thread):
                 if temp is not None:
                     bus.emit(Event(EventType.CPU_TEMP_UPDATED, {"temp": temp}))
                     bus.emit(Event(EventType.CPU_PROCENT_UPDATED, {
-                        "procent": cpu_percent/100,
-                        "ram": ram_percent/100
+                        "procent": cpu_percent,
+                        "ram": ram_percent,
                     }))
-                    logger.debug(f"CPU temp: {temp:.1f}°C")
+                    logger.debug(f"CPU temp: {temp:.1f}°C, CPU: {cpu_percent}%, RAM: {ram_percent}%")
             except Exception:
                 logger.exception("CPU temperature read failed")
 
@@ -103,121 +115,124 @@ class FanDriver:
     """
     Steruje wentylatorem na podstawie temperatury CPU z histerezą.
 
-    Subskrybuje CPU_TEMP_UPDATED i zmienia PWM jeśli temperatura przekroczy progi.
-    Histereza zapobiega oscylacji — wymaga odchylenia o HYSTERESIS od poprzedniego progu.
+    11 poziomów PWM co 10% (0–100%). Każdy próg ma osobną temperaturę
+    wejścia (temp_up) i wyjścia (temp_down) — histereza 2°C zapobiega
+    oscylacji na granicy progów.
     """
 
     def __init__(self):
         self._pwm: Optional[object] = None
         self._power: Optional[object] = None
-        self._current_state = FAN_STATE_OFF
-        self._last_temp = 0.0
+        self._current_level: int = 0   # indeks w FAN_LEVELS
+        self._last_temp: float = 0.0
 
         self._setup_hardware()
         self._register_handlers()
 
     def _setup_hardware(self) -> None:
         """Inicjalizacja GPIO i PWM."""
+        global _pwm_singleton
+
         if not HW_AVAILABLE:
             logger.warning("GPIO not available — fan disabled")
             return
 
         try:
-            GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(False)
+            GPIO.setmode(GPIO.BCM)
 
-            # Zasilanie wentylatora (opcjonalnie)
             GPIO.setup(POWER_PIN, GPIO.OUT)
             GPIO.output(POWER_PIN, GPIO.HIGH)
             self._power = POWER_PIN
 
-            # PWM
             GPIO.setup(PWM_PIN, GPIO.OUT)
-            self._pwm = GPIO.PWM(PWM_PIN, PWM_FREQ)
-            self._pwm.start(0)
 
-            logger.info("Fan hardware initialized")
+            if _pwm_singleton is not None:
+                self._pwm = _pwm_singleton
+                self._pwm.ChangeDutyCycle(0)
+                logger.info("Fan hardware reused existing PWM object")
+            else:
+                self._pwm = GPIO.PWM(PWM_PIN, PWM_FREQ)
+                self._pwm.start(0)
+                _pwm_singleton = self._pwm
+                logger.info("Fan hardware initialized (new PWM object)")
+
+            self._current_level = 0
+
         except Exception:
             logger.exception("Fan hardware init failed")
 
     def _register_handlers(self) -> None:
-        """Subskrybuj zdarzenia temperatury."""
-        # Importujemy dynamicznie — unikamy circular imports
-        from core.events import EventType
         bus.subscribe(EventType.CPU_TEMP_UPDATED, self._on_cpu_temp)
 
     def _on_cpu_temp(self, event: Event) -> None:
-        """Obsługi zdarzenia temperatury — oblicz nowy stan i zmień PWM."""
         temp = event.payload.get("temp")
         if temp is None:
             return
 
         self._last_temp = temp
-        new_state = self._calculate_fan_state(temp, self._current_state)
+        new_level = self._calculate_level(temp)
 
-        if new_state != self._current_state:
-            self._set_fan_speed(new_state)
-            self._current_state = new_state
-            logger.info(f"Fan speed changed: {self._current_state}% (temp {temp:.1f}°C)")
+        if new_level != self._current_level:
+            pwm = FAN_LEVELS[new_level][2]
+            self._set_fan_speed(pwm)
+            logger.info(
+                f"Fan: {FAN_LEVELS[self._current_level][2]}% → {pwm}% "
+                f"(poziom {self._current_level}→{new_level}, temp {temp:.1f}°C)"
+            )
+            self._current_level = new_level
 
-    def _calculate_fan_state(self, temp: float, current_state: int) -> int:
+    def _calculate_level(self, temp: float) -> int:
         """
-        Oblicz nowy stan wentylatora z histerezą.
+        Oblicz nowy poziom wentylatora z histerezą i dowolnym skokiem.
 
-        Histereza unika oscylacji na granicy progów — zmiana stanu wymaga
-        odchylenia o HYSTERESIS od poprzedniego punktu aktywacji.
+        Wzrost: skanuj od najwyższego poziomu w dół — weź pierwszy
+                którego temp_up <= temp. Pozwala przeskoczyć kilka stopni naraz.
+        Spadek: skanuj od bieżącego poziomu w dół — weź pierwszy
+                którego temp_down <= temp. Histereza bieżącego poziomu
+                zapobiega oscylacji.
         """
-        # OFF -> LOW (temp >= FAN_OFF_TEMP + HYSTERESIS)
-        if current_state == FAN_STATE_OFF and temp >= FAN_OFF_TEMP + HYSTERESIS:
-            return FAN_STATE_LOW
+        current = self._current_level
 
-        # LOW -> OFF (temp <= FAN_OFF_TEMP - HYSTERESIS)
-        elif current_state == FAN_STATE_LOW and temp <= FAN_OFF_TEMP - HYSTERESIS:
-            return FAN_STATE_OFF
+        # Wzrost — szukaj od góry
+        for level in range(len(FAN_LEVELS) - 1, current, -1):
+            if temp >= FAN_LEVELS[level][0]:
+                return level
 
-        # LOW -> HIGH (temp >= FAN_LOW_TEMP + HYSTERESIS)
-        elif current_state == FAN_STATE_LOW and temp >= FAN_LOW_TEMP + HYSTERESIS:
-            return FAN_STATE_HIGH
+        # Spadek — szukaj od bieżącego w dół
+        if current > 0 and temp < FAN_LEVELS[current][1]:
+            for level in range(current - 1, -1, -1):
+                if level == 0 or temp >= FAN_LEVELS[level][1]:
+                    return level
 
-        # HIGH -> LOW (temp <= FAN_LOW_TEMP - HYSTERESIS)
-        elif current_state == FAN_STATE_HIGH and temp <= FAN_LOW_TEMP - HYSTERESIS:
-            return FAN_STATE_LOW
-
-        # Bez zmian
-        return current_state
+        return current
 
     def _set_fan_speed(self, speed: int) -> None:
-        """Ustaw PWM dla wentylatora i emituj zdarzenie."""
         if not HW_AVAILABLE or not self._pwm:
             return
-
         try:
             self._pwm.ChangeDutyCycle(speed)
-            # Emituj zdarzenie o zmianie prędkości
             bus.emit(Event(EventType.FAN_SPEED_CHANGED, {"speed": speed}))
         except Exception:
             logger.exception(f"Failed to set fan speed to {speed}%")
 
     def get_status(self) -> dict:
-        """Zwróć aktualny status wentylatora."""
+        pwm = FAN_LEVELS[self._current_level][2]
         return {
-            "temp": self._last_temp,
-            "speed_percent": self._current_state,
-            "speed_name": {
-                FAN_STATE_OFF: "OFF",
-                FAN_STATE_LOW: "LOW",
-                FAN_STATE_HIGH: "HIGH",
-            }.get(self._current_state, "UNKNOWN"),
+            "temp":         self._last_temp,
+            "level":        self._current_level,
+            "speed_percent": pwm,
         }
 
     def cleanup(self) -> None:
-        """Wyczyść GPIO przy shutdown."""
+        global _pwm_singleton
+
         if not HW_AVAILABLE:
             return
-
         try:
             if self._pwm:
                 self._pwm.stop()
+                _pwm_singleton = None
             if self._power:
                 GPIO.output(POWER_PIN, GPIO.LOW)
             GPIO.cleanup()

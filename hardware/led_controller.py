@@ -30,7 +30,7 @@ NUM_PIXELS   = 15
 ORDER        = None   # neopixel.GRB
 
 # GPIO PWM — diody RGB (nie NeoPixel)
-RGB_PINS = {"red": 16, "green": 26, "blue": 12}
+RGB_PINS = {"red": 9, "green": 10, "blue": 11}
 
 # Paleta kolorów indeksowana przez state.leds.color
 COLOR_PALETTE: list[Tuple[int, int, int]] = [

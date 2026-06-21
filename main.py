@@ -216,7 +216,7 @@ if __name__ == "__main__":
 
     # WAŻNE: Hardware musi się zarejestrować (subskrybować zdarzenia)
     # PRZED tym jak Scheduler będzie emitować zdarzenia LCD_ON/LCD_OFF
-    lcd, led, fan_driver, cpu_temp_producer = start_hardware()
+    lcd, led, cpu_temp_producer, fan_driver  = start_hardware()
 
     # Teraz rejestrujemy State/Config/DB consumers
     # Scheduler jest tworzony OSTATNI i emituje LCD_ON/LCD_OFF
